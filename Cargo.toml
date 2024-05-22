@@ -1,0 +1,20 @@
+[package]
+name = "bmp390"
+version = "0.1.0"
+edition = "2021"
+authors = ["Adam Sasine <adam.sasine@gmail.com>"]
+homepage = "https://github.com/asasine/bmp390"
+repository = "https://github.com/asasine/bmp390"
+license = "MIT"
+keywords = ["embedded-hal", "async", "pressure", "sensor"]
+categories = ["aerospace", "embedded", "hardware-support", "no-std"]
+
+[dependencies]
+embedded-hal-async = "1.0"
+
+[dev-dependencies]
+embedded-hal-mock = { version = "0.10", default-features = false, features = [
+    "eh1",
+    "embedded-hal-async",
+] }
+tokio = { version = "1.37.0", features = ["macros", "rt"] }
