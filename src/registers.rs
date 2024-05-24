@@ -1013,6 +1013,33 @@ impl From<OdrSel> for u8 {
     }
 }
 
+#[cfg(feature = "embassy-time")]
+impl From<OdrSel> for embassy_time::Duration {
+    /// Convert this type to an [`embassy_time::Duration`] that represents the sampling period.
+    fn from(odr: OdrSel) -> embassy_time::Duration {
+        match odr {
+            OdrSel::ODR_200 => embassy_time::Duration::from_millis(5),
+            OdrSel::ODR_100 => embassy_time::Duration::from_millis(10),
+            OdrSel::ODR_50 => embassy_time::Duration::from_millis(20),
+            OdrSel::ODR_25 => embassy_time::Duration::from_millis(40),
+            OdrSel::ODR_12p5 => embassy_time::Duration::from_millis(80),
+            OdrSel::ODR_6p25 => embassy_time::Duration::from_millis(160),
+            OdrSel::ODR_3p1 => embassy_time::Duration::from_millis(320),
+            OdrSel::ODR_1p5 => embassy_time::Duration::from_millis(640),
+            OdrSel::ODR_0p78 => embassy_time::Duration::from_millis(1_280),
+            OdrSel::ODR_0p39 => embassy_time::Duration::from_millis(2_560),
+            OdrSel::ODR_0p2 => embassy_time::Duration::from_millis(5_120),
+            OdrSel::ODR_0p1 => embassy_time::Duration::from_millis(10_240),
+            OdrSel::ODR_0p05 => embassy_time::Duration::from_millis(20_480),
+            OdrSel::ODR_0p02 => embassy_time::Duration::from_millis(40_960),
+            OdrSel::ODR_0p01 => embassy_time::Duration::from_millis(81_920),
+            OdrSel::ODR_0p006 => embassy_time::Duration::from_millis(163_840),
+            OdrSel::ODR_0p003 => embassy_time::Duration::from_millis(327_680),
+            OdrSel::ODR_0p0015 => embassy_time::Duration::from_millis(655_360),
+        }
+    }
+}
+
 /// The IIR filter can suppress short-term pressure disturbances by filtering internally.
 ///
 /// The environmental pressure is subject to many short-term changes, caused e.g. by slamming of a door or window, or
