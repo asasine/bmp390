@@ -10,7 +10,7 @@
 //! # Example
 //! ```no_run
 //! # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-//! # async fn run() -> Result<(), bmp390::Bmp390Error<embedded_hal_async::i2c::ErrorKind>> {
+//! # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
 //! use bmp390::Bmp390;
 //! let config = bmp390::Configuration::default();
 //! # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
@@ -36,7 +36,7 @@ use embedded_hal_async::{delay::DelayNs, i2c::I2c};
 
 /// Errors that can occur when communicating with the BMP390 barometer.
 #[derive(Debug, Clone, Copy)]
-pub enum Bmp390Error<E> {
+pub enum Error<E> {
     /// An error occurred while communicating with the BMP390 over I2C. The inner error contains the specific error.
     I2c(E),
 
@@ -50,9 +50,9 @@ pub enum Bmp390Error<E> {
     Configuration,
 }
 
-impl From<embedded_hal_async::i2c::ErrorKind> for Bmp390Error<embedded_hal_async::i2c::ErrorKind> {
+impl From<embedded_hal_async::i2c::ErrorKind> for Error<embedded_hal_async::i2c::ErrorKind> {
     fn from(error: embedded_hal_async::i2c::ErrorKind) -> Self {
-        Bmp390Error::I2c(error)
+        Error::I2c(error)
     }
 }
 
@@ -104,10 +104,7 @@ struct CalibrationCoefficients {
 }
 
 impl CalibrationCoefficients {
-    async fn try_from_i2c<I: I2c>(
-        address: Address,
-        i2c: &mut I,
-    ) -> Result<Self, Bmp390Error<I::Error>> {
+    async fn try_from_i2c<I: I2c>(address: Address, i2c: &mut I) -> Result<Self, Error<I::Error>> {
         let mut calibration_coefficient_regs = [0; 21];
         i2c.write_read(
             address.into(),
@@ -115,7 +112,7 @@ impl CalibrationCoefficients {
             &mut calibration_coefficient_regs,
         )
         .await
-        .map_err(Bmp390Error::I2c)?;
+        .map_err(Error::I2c)?;
 
         Ok(Self::from_registers(&calibration_coefficient_regs))
     }
@@ -301,38 +298,38 @@ where
         address: Address,
         mut delay: D,
         config: &Configuration,
-    ) -> Result<Self, Bmp390Error<E>> {
+    ) -> Result<Self, Error<E>> {
         // 2 ms time to first communication (Datsheet Section 1, Table 2)
         delay.delay_ms(2).await;
 
         // read Register::EVENT to clear the event status flags
         i2c.write_read(address.into(), &[Register::EVENT.into()], &mut [0; 1])
             .await
-            .map_err(Bmp390Error::I2c)?;
+            .map_err(Error::I2c)?;
 
         // read Register::INT_STATUS to clear the interrupt status flags
         i2c.write_read(address.into(), &[Register::INT_STATUS.into()], &mut [0; 1])
             .await
-            .map_err(Bmp390Error::I2c)?;
+            .map_err(Error::I2c)?;
 
         // write configuration after clearing interrupt status flags so that they are accurate from here on
         i2c.write(address.into(), &config.to_write_bytes())
             .await
-            .map_err(Bmp390Error::I2c)?;
+            .map_err(Error::I2c)?;
 
         // read Register::ERR_REG to determine if configuration was successful and to clear the error status flags
         let mut err_reg = [0; 1];
         i2c.write_read(address.into(), &[Register::ERR_REG.into()], &mut err_reg)
             .await
-            .map_err(Bmp390Error::I2c)
+            .map_err(Error::I2c)
             .and_then(move |_| {
                 let err_reg = ErrReg::from(err_reg[0]);
                 if err_reg.fatal_err {
-                    Err(Bmp390Error::<E>::Fatal)
+                    Err(Error::<E>::Fatal)
                 } else if err_reg.cmd_err {
-                    Err(Bmp390Error::<E>::Command)
+                    Err(Error::<E>::Command)
                 } else if err_reg.conf_err {
-                    Err(Bmp390Error::<E>::Configuration)
+                    Err(Error::<E>::Configuration)
                 } else {
                     Ok(())
                 }
@@ -356,14 +353,14 @@ where
     }
 
     /// Reads the temperature from the barometer.
-    pub async fn temperature(&mut self) -> Result<f32, Bmp390Error<E>> {
+    pub async fn temperature(&mut self) -> Result<f32, Error<E>> {
         // Burst read: only address DATA_3 (temperature XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_3.into()];
         let mut read = [0; 3];
         self.i2c
             .write_read(self.address.into(), write, &mut read)
             .await
-            .map_err(Bmp390Error::I2c)?;
+            .map_err(Error::I2c)?;
 
         // DATA_3 is the LSB, DATA_5 is the MSB
         let temerpature_uncompensated =
@@ -377,20 +374,20 @@ where
     }
 
     /// Reads the pressure from the barometer.
-    pub async fn pressure(&mut self) -> Result<f32, Bmp390Error<E>> {
+    pub async fn pressure(&mut self) -> Result<f32, Error<E>> {
         // pressure requires temperature to compensate, so just measure both
         let measurement = self.measure().await?;
         Ok(measurement.pressure)
     }
 
-    pub async fn measure(&mut self) -> Result<Measurement, Bmp390Error<E>> {
+    pub async fn measure(&mut self) -> Result<Measurement, Error<E>> {
         // Burst read: only address DATA_0 (pressure XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_0.into()];
         let mut read = [0; 6];
         self.i2c
             .write_read(self.address.into(), write, &mut read)
             .await
-            .map_err(Bmp390Error::I2c)?;
+            .map_err(Error::I2c)?;
 
         // pressure is 0:2 (XLSB, LSB, MSB), temperature is 3:5 (XLSB, LSB, MSB)
         let temperature_uncompensated =
@@ -568,8 +565,8 @@ mod tests {
         let mut i2c = Mock::new(&expectations);
         let delay = NoopDelay::new();
         let result = Bmp390::try_new(i2c.clone(), addr, delay, &Configuration::default()).await;
-        assert!(matches!(result, Err(Bmp390Error::Fatal)));
-        // assert_matches!(result, Err(Bmp390Error::Fatal))); // TODO: use assert_matches once it's stable
+        assert!(matches!(result, Err(Error::Fatal)));
+        // assert_matches!(result, Err(Error::Fatal))); // TODO: use assert_matches once it's stable
         i2c.done();
     }
 
@@ -597,7 +594,7 @@ mod tests {
         let mut i2c = Mock::new(&expectations);
         let delay = NoopDelay::new();
         let result = Bmp390::try_new(i2c.clone(), addr, delay, &Configuration::default()).await;
-        assert!(matches!(result, Err(Bmp390Error::Command)));
+        assert!(matches!(result, Err(Error::Command)));
         i2c.done();
     }
 
@@ -625,7 +622,7 @@ mod tests {
         let mut i2c = Mock::new(&expectations);
         let delay = NoopDelay::new();
         let result = Bmp390::try_new(i2c.clone(), addr, delay, &Configuration::default()).await;
-        assert!(matches!(result, Err(Bmp390Error::Configuration)));
+        assert!(matches!(result, Err(Error::Configuration)));
         i2c.done();
     }
 
