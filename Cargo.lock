@@ -71,8 +71,7 @@ dependencies = [
 [[package]]
 name = "embedded-hal-mock"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4dbaee0c6634ca12a70ea5a794a88971c4a9dd7058053c48e418b9dfa23d1ab0"
+source = "git+https://github.com/asasine/embedded-hal-mock?branch=feat/asasine/async-i2c#5f7fd16c62851dddaacc3b75dd53beee64cb1aa9"
 dependencies = [
  "embedded-hal",
  "embedded-hal-async",
