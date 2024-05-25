@@ -17,7 +17,7 @@
 //! # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 //! let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
 //! let pressure = sensor.pressure().await?;
-//! println!("Pressure: {:.2} hPa", pressure);
+//! println!("Pressure: {:.2} Pa", pressure);
 //! # Ok(())
 //! # }
 //! ```
