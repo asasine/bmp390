@@ -32,7 +32,7 @@ mod registers;
 
 pub use registers::*;
 
-use defmt::{debug, Format};
+use defmt::{debug, trace, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
 
 /// Errors that can occur when communicating with the BMP390 barometer.
@@ -127,6 +127,7 @@ impl CalibrationCoefficients {
     ///
     /// See: Datasheet Apendix A, Section 8.4
     fn from_registers(data: &[u8; 21]) -> Self {
+        trace!("NVM_PAR: {=[u8]:#04x}", *data);
         let nvm_par_t1: u16 = (data[1] as u16) << 8 | data[0] as u16;
         let nvm_par_t2: u16 = (data[3] as u16) << 8 | data[2] as u16;
         let nvm_par_t3: i8 = data[4] as i8;
@@ -193,31 +194,10 @@ impl CalibrationCoefficients {
         partial_out1 + partial_out2 + partial_4
     }
 
-    /// Gets the bytes to write in a write-read transaction to the BMP390 to read the calibration coefficients.
-    fn write_read_write_transaction() -> [u8; 21] {
-        [
-            Register::NVM_PAR_T1_0.into(),
-            Register::NVM_PAR_T1_1.into(),
-            Register::NVM_PAR_T2_0.into(),
-            Register::NVM_PAR_T2_1.into(),
-            Register::NVM_PAR_T3.into(),
-            Register::NVM_PAR_P1_0.into(),
-            Register::NVM_PAR_P1_1.into(),
-            Register::NVM_PAR_P2_0.into(),
-            Register::NVM_PAR_P2_1.into(),
-            Register::NVM_PAR_P3.into(),
-            Register::NVM_PAR_P4.into(),
-            Register::NVM_PAR_P5_0.into(),
-            Register::NVM_PAR_P5_1.into(),
-            Register::NVM_PAR_P6_0.into(),
-            Register::NVM_PAR_P6_1.into(),
-            Register::NVM_PAR_P7.into(),
-            Register::NVM_PAR_P8.into(),
-            Register::NVM_PAR_P9_0.into(),
-            Register::NVM_PAR_P9_1.into(),
-            Register::NVM_PAR_P10.into(),
-            Register::NVM_PAR_P11.into(),
-        ]
+    /// Gets the bytes to write in a write-read transaction to the BMP390 to read the calibration coefficients. This
+    /// must be combined with a 21-byte read in a combined write-read burst.
+    fn write_read_write_transaction() -> [u8; 1] {
+        [Register::NVM_PAR_T1_0.into()]
     }
 }
 
@@ -405,6 +385,8 @@ where
             .await
             .map_err(Error::I2c)?;
 
+        trace!("DATA = {=[u8]:#04x}", read);
+
         // pressure is 0:2 (XLSB, LSB, MSB), temperature is 3:5 (XLSB, LSB, MSB)
         let temperature_uncompensated =
             i32::from(read[3]) | i32::from(read[4]) << 8 | i32::from(read[5]) << 16;
@@ -433,24 +415,22 @@ mod tests {
 
     use super::*;
 
+    /// Bytes for the DATA registers (0x04 .. 0x09) for a pressure and temperature measurement.
+    static PRESSURE_TEMPERATURE_BYTES: [u8; 6] = [0xcb, 0xb3, 0x6b, 0xd1, 0xba, 0x82];
+
+    /// The [`Measurement::pressure`] value for [`PRESSURE_TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`]
+    static PRESSURE: f32 = 100_207.97;
+
+    /// Bytes for the DATA registers (0x07 .. 0x09) for a temperature measurement.
+    static TEMPERATURE_BYTES: [u8; 3] = [0xd1, 0xba, 0x82];
+
+    /// The [`Measurement::temperature`] value for [`TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`]
+    static TEMPERATURE: f32 = 25.770_746;
+
     impl Default for CalibrationCoefficients {
         fn default() -> Self {
-            Self {
-                par_t1: 0.0,
-                par_t2: 0.0,
-                par_t3: 0.0,
-                par_p1: 0.0,
-                par_p2: 0.0,
-                par_p3: 0.0,
-                par_p4: 0.0,
-                par_p5: 0.0,
-                par_p6: 0.0,
-                par_p7: 0.0,
-                par_p8: 0.0,
-                par_p9: 0.0,
-                par_p10: 0.0,
-                par_p11: 0.0,
-            }
+            // NVM_PAR registers (0x31 .. 0x45) from a real BMP390, rev 0x01
+            Self::from_registers(&[0x98, 0x6c, 0xa9, 0x4a, 0xf9, 0xe3, 0x1c, 0x61, 0x16, 0x06, 0x01, 0x51, 0x4a, 0xde, 0x5d, 0x03, 0xfa, 0xf9, 0x0e, 0x06, 0xf5])
         }
     }
 
@@ -515,19 +495,20 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_reads_temperature() {
+    async fn test_reads_temperature_and_compensates() {
         let addr = Address::Up;
         let expectations = [I2cTransaction::write_read(
             addr.into(),
             vec![Register::DATA_3.into()],
-            vec![0; 3],
+            TEMPERATURE_BYTES.to_vec(),
         )];
 
         let mut i2c = Mock::new(&expectations);
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
 
-        let _temperature = bmp390.temperature().await.unwrap();
+        let temperature = bmp390.temperature().await.unwrap();
+        assert_eq!(temperature, TEMPERATURE);
         i2c.done();
     }
 
@@ -539,14 +520,15 @@ mod tests {
         let expectations = [I2cTransaction::write_read(
             addr.into(),
             vec![Register::DATA_0.into()],
-            vec![0; 6],
+            PRESSURE_TEMPERATURE_BYTES.to_vec(),
         )];
 
         let mut i2c = Mock::new(&expectations);
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
 
-        let _pressure = bmp390.pressure().await.unwrap();
+        let pressure = bmp390.pressure().await.unwrap();
+        assert_eq!(pressure, PRESSURE);
         i2c.done();
     }
 
@@ -556,14 +538,16 @@ mod tests {
         let expectations = [I2cTransaction::write_read(
             addr.into(),
             vec![Register::DATA_0.into()],
-            vec![0; 6],
+            PRESSURE_TEMPERATURE_BYTES.to_vec(),
         )];
 
         let mut i2c = Mock::new(&expectations);
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
 
-        let _measurement = bmp390.measure().await.unwrap();
+        let measurement = bmp390.measure().await.unwrap();
+        assert_eq!(measurement.temperature, TEMPERATURE);
+        assert_eq!(measurement.pressure, PRESSURE);
         i2c.done();
     }
 
@@ -717,10 +701,5 @@ mod tests {
 
             i2c.done();
         }
-    }
-
-    #[tokio::test]
-    async fn test_compensation() {
-        // TODO: test that the temperature and pressure registers are read and compensated correctly
     }
 }
