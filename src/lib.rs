@@ -5,7 +5,8 @@
 //!
 //! [`Bmp390`] is a driver for the BMP390 sensor. It provides methods to read the temperature and pressure from the
 //! sensor over [I2C](https://en.wikipedia.org/wiki/I%C2%B2C). It is built on top of the [`embedded_hal_async::i2c`]
-//! traits to be compatible with a wide range of embedded platforms.
+//! traits to be compatible with a wide range of embedded platforms. Measurements utilize the [`uom`] crate to provide
+//! automatic, type-safe, and zero-cost units of measurement for [`Measurement`].
 //!
 //! # Example
 //! ```no_run
@@ -16,8 +17,8 @@
 //! # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
 //! # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 //! let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
-//! let pressure = sensor.pressure().await?;
-//! println!("Pressure: {:.2} Pa", pressure);
+//! let measurement = sensor.measure().await?;
+//! defmt::info!("Measurement: {}", measurement);
 //! # Ok(())
 //! # }
 //! ```
@@ -28,12 +29,16 @@
 
 #![cfg_attr(not(test), no_std)]
 
-mod registers;
-
-pub use registers::*;
-
 use defmt::{debug, trace, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
+use libm::powf;
+use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+use uom::si::length::{foot, meter};
+use uom::si::pressure::{millibar, pascal};
+use uom::si::thermodynamic_temperature::degree_celsius;
+
+mod registers;
+pub use registers::*;
 
 /// Errors that can occur when communicating with the BMP390 barometer.
 #[derive(Debug, Clone, Copy, Format)]
@@ -60,14 +65,122 @@ impl From<embedded_hal_async::i2c::ErrorKind> for Error<embedded_hal_async::i2c:
     }
 }
 
-/// A single measurement from the BMP390 barometer.
-#[derive(Debug, Clone, Copy, Format)]
+/// A single measurement from the [`Bmp390`] barometer.
+///
+/// Measurements utilize the [`uom`] crate to provide automatic, type-safe, and zero-cost units of measurement.
+///
+/// # Example
+/// ```
+/// # use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+/// # use uom::si::pressure::pascal;
+/// # use uom::si::length::meter;
+/// # use uom::si::thermodynamic_temperature::degree_celsius;
+/// let measurement = bmp390::Measurement {
+///    pressure: Pressure::new::<pascal>(90_240.81),
+///    temperature: ThermodynamicTemperature::new::<degree_celsius>(25.0),
+///    altitude: Length::new::<meter>(1000.0),
+/// };
+///
+/// defmt::info!("Measurement: {}", measurement);
+/// ```
+///
+/// Note: these examples show creation of [`Measurement`] structs directly. In practice you would receive these from
+/// [`Bmp390::measure`].
+///
+/// Conversion between units is easy with the [`uom`] crate. For example, to convert to imperial units:
+/// ```
+/// # use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+/// # use uom::si::pressure::pascal;
+/// # use uom::si::length::meter;
+/// # use uom::si::thermodynamic_temperature::degree_celsius;
+/// # let measurement = bmp390::Measurement {
+/// #    pressure: Pressure::new::<pascal>(90_240.81),
+/// #    temperature: ThermodynamicTemperature::new::<degree_celsius>(25.0),
+/// #    altitude: Length::new::<meter>(1000.0),
+/// # };
+/// use uom::si::pressure::millimeter_of_mercury;
+/// use uom::si::thermodynamic_temperature::degree_fahrenheit;
+/// use uom::si::length::foot;
+///
+/// // "Pressure: 676.9753 mmHg, Temperature: 77 °F, Altitude: 3280.84 feet"
+/// defmt::info!("Pressure: {} mmHg, temperature: {} °F, altitude: {} feet",
+///     measurement.pressure.get::<millimeter_of_mercury>(),
+///     measurement.temperature.get::<degree_fahrenheit>(),
+///     measurement.altitude.get::<foot>());
+/// ```
+#[derive(Debug, Clone, Copy)]
 pub struct Measurement {
-    /// The pressure in pascals (Pa).
-    pub pressure: f32,
+    /// The pressure as a [`Pressure`], allowing for easy conversion to any unit of pressure.
+    ///
+    /// # Example
+    /// ```
+    /// # use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+    /// # use uom::si::pressure::pascal;
+    /// # use uom::si::length::meter;
+    /// # use uom::si::thermodynamic_temperature::degree_celsius;
+    /// use uom::si::pressure::millimeter_of_mercury;
+    /// let measurement = bmp390::Measurement {
+    ///    pressure: Pressure::new::<pascal>(90_240.81),
+    ///    temperature: ThermodynamicTemperature::new::<degree_celsius>(25.0),
+    ///    altitude: Length::new::<meter>(1000.0),
+    /// };
+    ///
+    /// // "Pressure: 676.9753 mmHg"
+    /// defmt::info!("Pressure: {} mmHg", measurement.pressure.get::<millimeter_of_mercury>());
+    /// ```
+    pub pressure: Pressure,
 
-    /// The temperature in degrees Celsius (°C).
-    pub temperature: f32,
+    /// The temperature as a [`ThermodynamicTemperature`], allowing for easy conversion to any unit of temperature.
+    ///
+    /// # Example
+    /// ```
+    /// # use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+    /// # use uom::si::pressure::pascal;
+    /// # use uom::si::length::meter;
+    /// # use uom::si::thermodynamic_temperature::degree_celsius;
+    /// use uom::si::thermodynamic_temperature::degree_fahrenheit;
+    /// let measurement = bmp390::Measurement {
+    ///    pressure: Pressure::new::<pascal>(90_240.81),
+    ///    temperature: ThermodynamicTemperature::new::<degree_celsius>(25.0),
+    ///    altitude: Length::new::<meter>(1000.0),
+    /// };
+    ///
+    /// // "Temperature: 77 °F"
+    /// defmt::info!("Temperature: {} °F", measurement.temperature.get::<degree_fahrenheit>());
+    /// ```
+    pub temperature: ThermodynamicTemperature,
+
+    /// The altitude as a [`Length`], allowing for easy conversion to any unit of length.
+    ///
+    /// # Example
+    /// ```
+    /// # use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
+    /// # use uom::si::pressure::pascal;
+    /// # use uom::si::length::meter;
+    /// # use uom::si::thermodynamic_temperature::degree_celsius;
+    /// use uom::si::length::foot;
+    /// let measurement = bmp390::Measurement {
+    ///    pressure: Pressure::new::<pascal>(90_240.81),
+    ///    temperature: ThermodynamicTemperature::new::<degree_celsius>(25.0),
+    ///    altitude: Length::new::<meter>(1000.0),
+    /// };
+    ///
+    /// // "Length: 3280.84 feet"
+    /// defmt::info!("Length: {} feet", measurement.altitude.get::<foot>());
+    /// ```
+    pub altitude: Length,
+}
+
+impl Format for Measurement {
+    fn format(&self, f: defmt::Formatter) {
+        defmt::write!(
+            f,
+            "Pressure: {} Pa, Temperature: {} °C, Altitude: {} m",
+            self.pressure.get::<pascal>(),
+            self.temperature.get::<degree_celsius>(),
+            self.altitude.get::<meter>()
+        );
+    }
 }
 
 /// The BMP390 barometer's I2C addresses, either `0x76` or `0x77`.
@@ -164,34 +277,37 @@ impl CalibrationCoefficients {
     /// Compensate a temperature reading according to calibration coefficients.
     ///
     /// See: Datasheet Apendix A, Section 8.5
-    fn compensate_temperature(&self, temperature_uncompensated: i32) -> f32 {
+    fn compensate_temperature(&self, temperature_uncompensated: i32) -> ThermodynamicTemperature {
         let uncompensated = temperature_uncompensated as f32;
         let partial_1 = uncompensated - self.par_t1;
         let partial_2 = partial_1 * self.par_t2;
-        partial_2 + (partial_1 * partial_1) * self.par_t3
+        let temperature = partial_2 + (partial_1 * partial_1) * self.par_t3;
+        ThermodynamicTemperature::new::<degree_celsius>(temperature)
     }
 
     /// Compensate a pressure reading according to calibration coefficients.
     ///
     /// See: Datasheet Apendix A, Section 8.6
-    fn compensate_pressure(&self, tempature: f32, pressure_uncompensated: i32) -> f32 {
+    fn compensate_pressure(&self, temperature: ThermodynamicTemperature, pressure_uncompensated: i32) -> Pressure {
         let uncompensated = pressure_uncompensated as f32;
-        let partial_1 = self.par_p6 * tempature;
-        let partial_2 = self.par_p7 * tempature * tempature;
-        let partial_3 = self.par_p8 * tempature * tempature * tempature;
+        let temperature = temperature.get::<degree_celsius>();
+        let partial_1 = self.par_p6 * temperature;
+        let partial_2 = self.par_p7 * temperature * temperature;
+        let partial_3 = self.par_p8 * temperature * temperature * temperature;
         let partial_out1 = self.par_p5 + partial_1 + partial_2 + partial_3;
 
-        let partial_1 = self.par_p2 * tempature;
-        let partial_2 = self.par_p3 * tempature * tempature;
-        let partial_3 = self.par_p4 * tempature * tempature * tempature;
+        let partial_1 = self.par_p2 * temperature;
+        let partial_2 = self.par_p3 * temperature * temperature;
+        let partial_3 = self.par_p4 * temperature * temperature * temperature;
         let partial_out2 = uncompensated * (self.par_p1 + partial_1 + partial_2 + partial_3);
 
         let partial_1 = uncompensated * uncompensated;
-        let partial_2 = self.par_p9 + self.par_p10 * tempature;
+        let partial_2 = self.par_p9 + self.par_p10 * temperature;
         let partial_3 = partial_1 * partial_2;
-        let partial_4 = partial_3 + tempature * tempature * tempature * tempature * self.par_p11;
+        let partial_4 = partial_3 + temperature * temperature * temperature * temperature * self.par_p11;
 
-        partial_out1 + partial_out2 + partial_4
+        let pressure = partial_out1 + partial_out2 + partial_4;
+        Pressure::new::<pascal>(pressure)
     }
 
     /// Gets the bytes to write in a write-read transaction to the BMP390 to read the calibration coefficients. This
@@ -349,7 +465,7 @@ where
     }
 
     /// Reads the temperature from the barometer.
-    pub async fn temperature(&mut self) -> Result<f32, Error<E>> {
+    pub async fn temperature(&mut self) -> Result<ThermodynamicTemperature, Error<E>> {
         // Burst read: only address DATA_3 (temperature XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_3.into()];
         let mut read = [0; 3];
@@ -359,18 +475,16 @@ where
             .map_err(Error::I2c)?;
 
         // DATA_3 is the LSB, DATA_5 is the MSB
-        let temerpature_uncompensated =
-            i32::from(read[0]) | i32::from(read[1]) << 8 | i32::from(read[2]) << 16;
-
-        let temerpature = self
+        let temperature = i32::from(read[0]) | i32::from(read[1]) << 8 | i32::from(read[2]) << 16;
+        let temperature = self
             .coefficients
-            .compensate_temperature(temerpature_uncompensated);
+            .compensate_temperature(temperature);
 
-        Ok(temerpature)
+        Ok(temperature)
     }
 
     /// Reads the pressure from the barometer.
-    pub async fn pressure(&mut self) -> Result<f32, Error<E>> {
+    pub async fn pressure(&mut self) -> Result<Pressure, Error<E>> {
         // pressure requires temperature to compensate, so just measure both
         let measurement = self.measure().await?;
         Ok(measurement.pressure)
@@ -388,23 +502,30 @@ where
         trace!("DATA = {=[u8]:#04x}", read);
 
         // pressure is 0:2 (XLSB, LSB, MSB), temperature is 3:5 (XLSB, LSB, MSB)
-        let temperature_uncompensated =
-            i32::from(read[3]) | i32::from(read[4]) << 8 | i32::from(read[5]) << 16;
-        let temperature = self
-            .coefficients
-            .compensate_temperature(temperature_uncompensated);
+        let temperature = i32::from(read[3]) | i32::from(read[4]) << 8 | i32::from(read[5]) << 16;
+        let temperature = self.coefficients.compensate_temperature(temperature);
 
-        let pressure_uncompensated =
-            i32::from(read[0]) | i32::from(read[1]) << 8 | i32::from(read[2]) << 16;
-
-        let pressure = self
-            .coefficients
-            .compensate_pressure(temperature, pressure_uncompensated);
+        let pressure = i32::from(read[0]) | i32::from(read[1]) << 8 | i32::from(read[2]) << 16;
+        let pressure = self.coefficients.compensate_pressure(temperature, pressure);
 
         Ok(Measurement {
             temperature,
             pressure,
+            altitude: Self::calculate_altitude(pressure, Pressure::new::<millibar>(1013.25)),
         })
+    }
+
+    /// Calculate the altitude based on the pressure and calibrated pressure.
+    ///
+    /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+    pub async fn altitude(&mut self, sea_level_pressure: Pressure) -> Result<Length, Error<E>> {
+        let pressure = self.pressure().await?;
+        Ok(Self::calculate_altitude(pressure, sea_level_pressure))
+    }
+
+    /// Calculate the altitude based on the pressure and calibrated pressure.
+    fn calculate_altitude(pressure: Pressure, sea_level_pressure: Pressure) -> Length {
+        Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level_pressure).value, 0.190284)))
     }
 }
 
@@ -416,16 +537,24 @@ mod tests {
     use super::*;
 
     /// Bytes for the DATA registers (0x04 .. 0x09) for a pressure and temperature measurement.
-    static PRESSURE_TEMPERATURE_BYTES: [u8; 6] = [0xcb, 0xb3, 0x6b, 0xd1, 0xba, 0x82];
+    const PRESSURE_TEMPERATURE_BYTES: [u8; 6] = [0xcb, 0xb3, 0x6b, 0xd1, 0xba, 0x82];
 
-    /// The [`Measurement::pressure`] value for [`PRESSURE_TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`]
-    static PRESSURE: f32 = 100_207.97;
+    /// The [`Measurement::pressure`] value for [`PRESSURE_TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`].
+    fn expected_pressure() -> Pressure {
+        Pressure::new::<pascal>(100_207.97)
+    }
 
     /// Bytes for the DATA registers (0x07 .. 0x09) for a temperature measurement.
-    static TEMPERATURE_BYTES: [u8; 3] = [0xd1, 0xba, 0x82];
+    const TEMPERATURE_BYTES: [u8; 3] = [0xd1, 0xba, 0x82];
 
-    /// The [`Measurement::temperature`] value for [`TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`]
-    static TEMPERATURE: f32 = 25.770_746;
+    /// The [`Measurement::temperature`] value for [`TEMPERATURE_BYTES`] when compensated by [`CalibrationCoefficients::default()`].
+    fn expected_temperature() -> ThermodynamicTemperature {
+        ThermodynamicTemperature::new::<degree_celsius>(25.770_746)
+    }
+
+    fn expected_altitude() -> Length {
+        Length::new::<meter>(93.36266)
+    }
 
     impl Default for CalibrationCoefficients {
         fn default() -> Self {
@@ -504,11 +633,9 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 =
-            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-
+        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let temperature = bmp390.temperature().await.unwrap();
-        assert_eq!(temperature, TEMPERATURE);
+        assert_eq!(temperature, expected_temperature());
         i2c.done();
     }
 
@@ -524,11 +651,9 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 =
-            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-
+        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let pressure = bmp390.pressure().await.unwrap();
-        assert_eq!(pressure, PRESSURE);
+        assert_eq!(pressure, expected_pressure());
         i2c.done();
     }
 
@@ -542,12 +667,28 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 =
-            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-
+        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let measurement = bmp390.measure().await.unwrap();
-        assert_eq!(measurement.temperature, TEMPERATURE);
-        assert_eq!(measurement.pressure, PRESSURE);
+        assert_eq!(measurement.temperature, expected_temperature());
+        assert_eq!(measurement.pressure, expected_pressure());
+        i2c.done();
+    }
+
+    #[tokio::test]
+    async fn test_altitude() {
+        let addr = Address::Up;
+
+        // NOTE: a pressure read requires a temperature read, so response is 6 bytes
+        let expectations = [I2cTransaction::write_read(
+            addr.into(),
+            vec![Register::DATA_0.into()],
+            PRESSURE_TEMPERATURE_BYTES.to_vec(),
+        )];
+
+        let mut i2c = Mock::new(&expectations);
+        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let altitude = bmp390.altitude(Pressure::new::<millibar>(1013.25)).await.unwrap();
+        assert_eq!(altitude.get::<meter>(), expected_altitude().get::<meter>());
         i2c.done();
     }
 
