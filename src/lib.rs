@@ -41,6 +41,9 @@ pub enum Error<E> {
     /// An error occurred while communicating with the BMP390 over I2C. The inner error contains the specific error.
     I2c(E),
 
+    /// The BMP390's chip ID did not match the expected value of `0x60`. The actual chip ID is provided.
+    WrongChip(u8),
+
     /// A fatal error occurred on the BMP390. See [`ErrReg`] for more.
     Fatal,
 
@@ -305,13 +308,22 @@ where
         // 2 ms time to first communication (Datsheet Section 1, Table 2)
         delay.delay_ms(2).await;
 
-        // read Register::EVENT to clear the event status flags
-        i2c.write_read(address.into(), &[Register::EVENT.into()], &mut [0; 1])
+        let mut data = [0; 2];
+        i2c.write_read(address.into(), &[Register::CHIP_ID.into()], &mut data)
             .await
             .map_err(Error::I2c)?;
 
-        // read Register::INT_STATUS to clear the interrupt status flags
-        i2c.write_read(address.into(), &[Register::INT_STATUS.into()], &mut [0; 1])
+        let chip_id = data[0];
+        let rev_id = data[1];
+
+        debug!("CHIP_ID = {=u8:#04x}; REV_ID = {=u8:#04x}", chip_id, rev_id);
+        if chip_id != 0x60 {
+            return Err(Error::WrongChip(chip_id));
+        }
+
+        // read Register::EVENT and INT_STATUS in a burst read to clear the event and interrupt status flags
+        let mut data = [0; 2];
+        i2c.write_read(address.into(), &[Register::EVENT.into()], &mut data)
             .await
             .map_err(Error::I2c)?;
 
@@ -320,7 +332,7 @@ where
             .await
             .map_err(Error::I2c)?;
 
-        // read Register::ERR_REG to determine if configuration was successful and to clear the error status flags
+        // read Register::ERR_REG after writing config to determine if configuration was successful and to clear the error status flags
         let mut err_reg = [0; 1];
         i2c.write_read(address.into(), &[Register::ERR_REG.into()], &mut err_reg)
             .await
@@ -337,6 +349,7 @@ where
                     Ok(())
                 }
             })?;
+
         let coefficients = CalibrationCoefficients::try_from_i2c(address, &mut i2c).await?;
 
         Ok(Self::new_with_coefficients(i2c, address, coefficients))
@@ -449,15 +462,17 @@ mod tests {
         int_status: &IntStatus,
     ) -> [I2cTransaction; 5] {
         [
+            // CHIP_ID is read in a 2-byte burst to also read REV_ID
+            I2cTransaction::write_read(
+                addr.into(),
+                vec![Register::CHIP_ID.into()],
+                vec![0x60, 0x01],
+            ),
+            // EVENT and INT_STATUS are read in a 2-byte burst
             I2cTransaction::write_read(
                 addr.into(),
                 vec![Register::EVENT.into()],
-                vec![u8::from(*event)],
-            ),
-            I2cTransaction::write_read(
-                addr.into(),
-                vec![Register::INT_STATUS.into()],
-                vec![u8::from(*int_status)],
+                vec![u8::from(*event), u8::from(*int_status)],
             ),
             I2cTransaction::write(addr.into(), configuration.to_write_bytes().to_vec()),
             I2cTransaction::write_read(
@@ -474,7 +489,15 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_reads_compensation_coefficients_and_writes_configuration() {
+    async fn test_try_new() {
+        // Several things are implicitly tested here:
+        // 1. The chip ID is read and checked => Ok
+        // 2. The rev ID is read in the same burst as chip ID
+        // 3. The event and int status registers are read in a burst to clear them
+        // 4. The configuration is written
+        // 5. The ERR_REG is read to check for errors
+        // 6. The calibration coefficients are read
+
         let addr = Address::Up;
         let config = Configuration::default();
         let expectations = get_try_new_transactions(addr, &config, &0.into(), &0.into(), &0.into());
@@ -541,6 +564,34 @@ mod tests {
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
 
         let _measurement = bmp390.measure().await.unwrap();
+        i2c.done();
+    }
+
+    #[tokio::test]
+    async fn test_chip_id_incorrect() {
+        let addr = Address::Up;
+
+        let mut expectations = get_try_new_transactions(
+            addr,
+            &Configuration::default(),
+            &0.into(),
+            &0.into(),
+            &0.into(),
+        )
+        .into_iter()
+        .take(1)
+        .collect::<Vec<_>>();
+
+        expectations[0] = I2cTransaction::write_read(
+            addr.into(),
+            vec![Register::CHIP_ID.into()],
+            vec![0x42, 0x01],
+        );
+
+        let mut i2c = Mock::new(&expectations);
+        let delay = NoopDelay::new();
+        let result = Bmp390::try_new(i2c.clone(), addr, delay, &Configuration::default()).await;
+        assert!(matches!(result, Err(Error::WrongChip(0x42))));
         i2c.done();
     }
 
@@ -631,7 +682,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_any_other_error() {
-        // Test how the driver handles unexpected bits in the ERR_REG register
+        // Test that the driver handles unexpected bits in the ERR_REG register gracefully (i.e. doesn't panic or error)
         let addr = Address::Up;
 
         for err_reg_bits in 0..=7 {

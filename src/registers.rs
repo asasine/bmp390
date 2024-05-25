@@ -13,7 +13,7 @@ use defmt::Format;
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 pub enum Register {
-    /// Contains the chip identification code.
+    /// Contains the chip identification code. The BMP390 has a value of `0x60`.
     ///
     /// # Datasheet
     /// Section 4.3.1. Register 0x00 `CHIP_ID`
@@ -25,6 +25,10 @@ pub enum Register {
     CHIP_ID = 0x00,
 
     /// Contains the mask revision of the ASIC.
+    ///
+    /// This library has been tested with a BMP390 with a revision of `0x01`. If you have a different revision, please
+    /// [start a discussion](https://github.com/asasine/bmp390/discussions/new/choose) on the repository so I can hear
+    /// about your experience.
     ///
     /// # Datasheet
     /// Section 4.3.2. Register 0x01 `REV_ID`
