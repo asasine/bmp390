@@ -32,10 +32,11 @@ mod registers;
 
 pub use registers::*;
 
+use defmt::{debug, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
 
 /// Errors that can occur when communicating with the BMP390 barometer.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Format)]
 pub enum Error<E> {
     /// An error occurred while communicating with the BMP390 over I2C. The inner error contains the specific error.
     I2c(E),
@@ -57,9 +58,9 @@ impl From<embedded_hal_async::i2c::ErrorKind> for Error<embedded_hal_async::i2c:
 }
 
 /// A single measurement from the BMP390 barometer.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Format)]
 pub struct Measurement {
-    /// The pressure in hectopascals (hPa).
+    /// The pressure in pascals (Pa).
     pub pressure: f32,
 
     /// The temperature in degrees Celsius (°C).
@@ -70,7 +71,7 @@ pub struct Measurement {
 ///
 ///  The BMP390 can be configured to use two different addresses by either pulling the `SDO` pin down to `GND`
 /// (`0x76` via [`Address::Down`]) or up to `V_DDIO` (`0x77` via [`Address::Up`]).
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Format)]
 pub enum Address {
     /// `0x76`: The BMP390's address when `SDO` is pulled up to `GND`.
     Down = 0x76,
@@ -86,6 +87,7 @@ impl From<Address> for u8 {
     }
 }
 
+#[derive(Debug, Clone, Copy, Format)]
 struct CalibrationCoefficients {
     par_t1: f32,
     par_t2: f32,
@@ -217,6 +219,7 @@ impl CalibrationCoefficients {
 }
 
 /// Configuration for the BMP390 barometer.
+#[derive(Debug, Clone, Copy, Format)]
 pub struct Configuration {
     /// Enabling and disabling the pressure and temperature measurements and the power mode.
     pub power_control: PowerControl,

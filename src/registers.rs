@@ -4,10 +4,12 @@
 //! [BMP390 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf),
 //! revision 1.7, from Bosch Sensortec.
 
+use defmt::Format;
+
 /// The BMP390 has a number of registers to provide access to the sensor's data and control various settings.
 ///
 /// All registers have a width of 8 bits.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 #[repr(u8)]
 #[allow(non_camel_case_types)]
 pub enum Register {
@@ -452,7 +454,7 @@ impl From<Register> for u8 {
 /// | 0 | `fatal_err` | [`ErrReg::fatal_err`] |
 /// | 1 | `cmd_err` | [`ErrReg::cmd_err`] |
 /// | 2 | `conf_err` | [`ErrReg::conf_err`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct ErrReg {
     /// Indicates if there is a fatal error.
     pub fatal_err: bool,
@@ -506,7 +508,7 @@ impl From<ErrReg> for u8 {
 /// | 4 | `cmd_ready` | [`Status::cmd_ready`] |
 /// | 5 | `drdy_press` | [`Status::drdy_press`] |
 /// | 6 | `drdy_temp` | [`Status::drdy_temp`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Status {
     /// The command decoder status. Indicates if a [`Command`] is in progress (`false`) or if [`Register::CMD`] is
     /// ready to accept a new command (`true`).
@@ -542,7 +544,7 @@ impl From<u8> for Status {
 /// | --- | ---- | ----- |
 /// | 0 | `por_detected` | [`Event::por_detected`] |
 /// | 1 | `itf_act_pt` | [`Event::itf_act_pt`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Event {
     /// Indicates if a power-on reset was detected. Cleared on read.
     pub por_detected: bool,
@@ -589,7 +591,7 @@ impl From<Event> for u8 {
 /// | 0 | `fwm_int` | [`IntStatus::fwm_int`] |
 /// | 1 | `ffull_int` | [`IntStatus::ffull_int`] |
 /// | 3 | `drdy` | [`IntStatus::drdy`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct IntStatus {
     /// Indicates if the FIFO watermark interrupt is active. Cleared on read.
     pub fwm_int: bool,
@@ -633,7 +635,7 @@ impl From<IntStatus> for u8 {
 }
 
 /// The interrupt output type for the `INT` pin.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub enum IntOd {
     /// Open-drain output.
     OpenDrain = 1,
@@ -643,7 +645,7 @@ pub enum IntOd {
 }
 
 /// The interrupt level for the `INT` pin.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub enum IntLevel {
     /// Active high.
     High = 1,
@@ -667,7 +669,7 @@ pub enum IntLevel {
 /// | 4 | `ffull_en` | [`IntControl::fifo_full`] |
 /// | 5 | `int_ds` | [`IntControl::int_ds`] |
 /// | 6 | `drdy_en` | [`IntControl::drdy_en`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct IntControl {
     /// Configure output: open-drain or push-pull.
     pub output: IntOd,
@@ -739,7 +741,7 @@ impl From<IntControl> for u8 {
 /// # Datasheet
 /// 1. Section 3.3. Power modes
 /// 1. Section 4.3.17. Register 0x1B `PWR_CTRL`, Table 42.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub enum PowerMode {
     /// Sleep mode is set by default after power on reset. In sleep mode, no measurements are performed and power
     /// consumption (`I_DDSL`) is at a minimum. All registers are accessible; Chip-ID and compensation coefficients can
@@ -794,7 +796,7 @@ impl From<u8> for PowerMode {
 /// | 0 | `press_en` | [`PowerControl::enable_pressure`] |
 /// | 1 | `temp_en` | [`PowerControl::enable_temperature`] |
 /// | 5:4 | `mode` | [`PowerControl::mode`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct PowerControl {
     /// Enable the pressure sensor.
     pub enable_pressure: bool,
@@ -842,7 +844,7 @@ impl From<u8> for PowerControl {
 /// # Datasheet
 /// 1. Section 3.3.4. Oversampling
 /// 1. Section 4.3.18. Register 0x1C `OSR`, Table 43.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub enum Oversampling {
     /// No oversampling.
     None = 0b000,
@@ -905,7 +907,7 @@ impl TryFrom<u8> for Oversampling {
 /// | ---- | ---- | ----- |
 /// | 2:0 | `osr_p` | [`Osr::pressure`] |
 /// | 5:3 | `osr_t` | [`Osr::temperature`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Osr {
     /// Oversampling setting for pressure measurements.
     pub pressure: Oversampling,
@@ -930,7 +932,7 @@ impl From<Osr> for u8 {
 /// | Bits | Name | Field |
 /// | ---- | ---- | ----- |
 /// | 4:0 | `odr_sel` | [`Odr::odr_sel`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Odr {
     /// The subdivision factor for pressure and temperature measurements is `2^odr_sel`. Allowed values are 0..=17.
     /// Other values are saturated at 17.
@@ -948,7 +950,7 @@ impl From<Odr> for u8 {
 ///
 /// # Datasheet
 /// Section 4.3.20. Control settings for odr_sel, Table 45.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 #[allow(non_camel_case_types)]
 pub enum OdrSel {
     /// 200 Hz, sampling period 5 ms, prescaler 1.
@@ -1052,7 +1054,7 @@ impl From<OdrSel> for embassy_time::Duration {
 /// # Datasheet
 /// 1. Section 3.4.3. IIR filter
 /// 1. Section 4.3.21. Register 0x1F `CONFIG`, Table 46.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 #[allow(non_camel_case_types)]
 pub enum IirFilter {
     /// Filter coefficient is 0: bypass mode.
@@ -1096,7 +1098,7 @@ impl From<IirFilter> for u8 {
 /// | Bits | Name | Field |
 /// | ---- | ---- | ----- |
 /// | 3:1 | `iir_filter` | [`Config::iir_filter`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Config {
     /// Filter coefficient for the IIR filter.
     pub iir_filter: IirFilter,
@@ -1113,7 +1115,7 @@ impl From<Config> for u8 {
 ///
 /// # Datasheet
 /// Section 4.3.22. Register 0x7E `CMD`, Table 48.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub enum Command {
     /// Reserved. No command.
     Nop = 0x00,
@@ -1135,7 +1137,7 @@ pub enum Command {
 /// | Bits | Name | Field |
 /// | ---- | ---- | ----- |
 /// | 7:0 | `cmd` | [`Cmd::command`] |
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
 pub struct Cmd {
     /// The command to execute.
     pub command: Command,
