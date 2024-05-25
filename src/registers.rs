@@ -74,7 +74,7 @@ pub enum Register {
     /// Section 4.3.5. Register 0x04 .. 0x06 Pressure Data
     ///
     /// # Layout
-    /// | Register | 0x06 DATA_2 | 0x05 DATA_1 | 0x04 DATA_0 |
+    /// | Register | 0x06 [`Register::DATA_2`] | 0x05 [`Register::DATA_1`] | 0x04 [`Register::DATA_0`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | PRESS_MSB_23_16 | PRESS_MSB_15_8 | PRESS_MSB_7_0 |
@@ -89,7 +89,7 @@ pub enum Register {
     /// Section 4.3.5. Register 0x04 .. 0x06 Pressure Data
     ///
     /// # Layout
-    /// | Register | 0x06 DATA_2 | 0x05 DATA_1 | 0x04 DATA_0 |
+    /// | Register | 0x06 [`Register::DATA_2`] | 0x05 [`Register::DATA_1`] | 0x04 [`Register::DATA_0`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | PRESS_MSB_23_16 | PRESS_MSB_15_8 | PRESS_MSB_7_0 |
@@ -104,7 +104,7 @@ pub enum Register {
     /// Section 4.3.5. Register 0x04 .. 0x06 Pressure Data
     ///
     /// # Layout
-    /// | Register | 0x06 DATA_2 | 0x05 DATA_1 | 0x04 DATA_0 |
+    /// | Register | 0x06 [`Register::DATA_2`] | 0x05 [`Register::DATA_1`] | 0x04 [`Register::DATA_0`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | PRESS_MSB_23_16 | PRESS_MSB_15_8 | PRESS_MSB_7_0 |
@@ -119,7 +119,7 @@ pub enum Register {
     /// Section 4.3.6. Register 0x07 .. 0x09 Temperature Data
     ///
     /// # Layout
-    /// | Register | 0x09 DATA_5 | 0x08 DATA_4 | 0x07 DATA_3 |
+    /// | Register | 0x09 [`Register::DATA_5`] | 0x08 [`Register::DATA_4`] | 0x07 [`Register::DATA_3`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | TEMP_MSB_15_8 | TEMP_MSB_7_0 | TEMP_LSB_7_0 |
@@ -134,7 +134,7 @@ pub enum Register {
     /// Section 4.3.6. Register 0x07 .. 0x09 Temperature Data
     ///
     /// # Layout
-    /// | Register | 0x09 DATA_5 | 0x08 DATA_4 | 0x07 DATA_3 |
+    /// | Register | 0x09 [`Register::DATA_5`] | 0x08 [`Register::DATA_4`] | 0x07 [`Register::DATA_3`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | TEMP_MSB_15_8 | TEMP_MSB_7_0 | TEMP_LSB_7_0 |
@@ -149,7 +149,7 @@ pub enum Register {
     /// Section 4.3.6. Register 0x07 .. 0x09 Temperature Data
     ///
     /// # Layout
-    /// | Register | 0x09 DATA_5 | 0x08 DATA_4 | 0x07 DATA_3 |
+    /// | Register | 0x09 [`Register::DATA_5`] | 0x08 [`Register::DATA_4`] | 0x07 [`Register::DATA_3`] |
     /// | -------- | ----------- | ----------- | ----------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | TEMP_MSB_15_8 | TEMP_MSB_7_0 | TEMP_LSB_7_0 |
@@ -164,7 +164,7 @@ pub enum Register {
     /// Section 4.3.7. Register 0x0C .. 0x0E Sensor Time Data
     ///
     /// # Layout
-    /// | Register | 0x0E SENSORTIME_2 | 0x0D SENSORTIME_1 | 0x0C SENSORTIME_0 |
+    /// | Register | 0x0E [`Register::SENSORTIME_2`] | 0x0D [`Register::SENSORTIME_1`] | 0x0C [`Register::SENSORTIME_0`] |
     /// | -------- | ----------------- | ----------------- | ----------------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | sensor_time_23_16 | sensor_time_15_8 | sensor_time_7_0 |
@@ -179,7 +179,7 @@ pub enum Register {
     /// Section 4.3.7. Register 0x0C .. 0x0E Sensor Time Data
     ///
     /// # Layout
-    /// | Register | 0x0E SENSORTIME_2 | 0x0D SENSORTIME_1 | 0x0C SENSORTIME_0 |
+    /// | Register | 0x0E [`Register::SENSORTIME_2`] | 0x0D [`Register::SENSORTIME_1`] | 0x0C [`Register::SENSORTIME_0`] |
     /// | -------- | ----------------- | ----------------- | ----------------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | sensor_time_23_16 | sensor_time_15_8 | sensor_time_7_0 |
@@ -194,7 +194,7 @@ pub enum Register {
     /// Section 4.3.7. Register 0x0C .. 0x0E Sensor Time Data
     ///
     /// # Layout
-    /// | Register | 0x0E SENSORTIME_2 | 0x0D SENSORTIME_1 | 0x0C SENSORTIME_0 |
+    /// | Register | 0x0E [`Register::SENSORTIME_2`] | 0x0D [`Register::SENSORTIME_1`] | 0x0C [`Register::SENSORTIME_0`] |
     /// | -------- | ----------------- | ----------------- | ----------------- |
     /// | Bit | 7..0 | 7..0 | 7..0 |
     /// | Name | sensor_time_23_16 | sensor_time_15_8 | sensor_time_7_0 |
@@ -232,7 +232,7 @@ pub enum Register {
     /// Section 4.3.10. Register 0x12 .. 0x13 `FIFO_LENGTH`
     ///
     /// # Layout
-    /// | Register | 0x13 FIFO_LENGTH_1 | 0x12 FIFO_LENGTH_0 |
+    /// | Register | 0x13 [`Register::FIFO_LENGTH_1`] | 0x12 [`Register::FIFO_LENGTH_0`] |
     /// | -------- | ------------------- | ------------------- |
     /// | Bit | 0 | 7..0 |
     /// | Name | fifo_byte_counter_11_8 | fifo_byte_counter_7_0 |
@@ -245,7 +245,7 @@ pub enum Register {
     /// Section 4.3.10. Register 0x12 .. 0x13 `FIFO_LENGTH`
     ///
     /// # Layout
-    /// | Register | 0x13 FIFO_LENGTH_1 | 0x12 FIFO_LENGTH_0 |
+    /// | Register | 0x13 [`Register::FIFO_LENGTH_1`] | 0x12 [`Register::FIFO_LENGTH_0`] |
     /// | -------- | ------------------- | ------------------- |
     /// | Bit | 0 | 7..0 |
     /// | Name | fifo_byte_counter_8 | fifo_byte_counter_7_0 |
@@ -275,7 +275,7 @@ pub enum Register {
     /// Section 4.3.12. Register 0x15 .. 0x16 `FIFO_WTM`
     ///
     /// # Layout
-    /// | Register | 0x16 FIFO_WTM_1 | 0x15 FIFO_WTM_0 |
+    /// | Register | 0x16 [`Register::FIFO_WTM_1`] | 0x15 [`Register::FIFO_WTM_0`] |
     /// | -------- | ---------------- | ---------------- |
     /// | Bit | 0 | 7..0 |
     /// | Name | fifo_wtm_8 | fifo_wtm_7_0 |
@@ -288,7 +288,7 @@ pub enum Register {
     /// Section 4.3.12. Register 0x15 .. 0x16 `FIFO_WTM`
     ///
     /// # Layout
-    /// | Register | 0x16 FIFO_WTM_1 | 0x15 FIFO_WTM_0 |
+    /// | Register | 0x16 [`Register::FIFO_WTM_1`] | 0x15 [`Register::FIFO_WTM_0`] |
     /// | -------- | ---------------- | ---------------- |
     /// | Bit | 0 | 7..0 |
     /// | Name | fifo_wtm_8 | fifo_wtm_7_0 |
