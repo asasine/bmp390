@@ -1082,6 +1082,11 @@ pub enum IirFilter {
     coef_127 = 0b111,
 }
 
+impl IirFilter {
+    /// The filter coefficient for bypass mode. This is an alias of [`IirFilter::coef_0`].
+    pub const BYPASS: IirFilter = IirFilter::coef_0;
+}
+
 impl From<IirFilter> for u8 {
     /// Convert this type to a value that can be written to [`Register::CONFIG`].
     fn from(filter: IirFilter) -> u8 {
