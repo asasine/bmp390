@@ -302,7 +302,11 @@ impl CalibrationCoefficients {
     ///
     /// # Datasheet
     /// Apendix A, Section 8.6
-    fn compensate_pressure(&self, temperature: ThermodynamicTemperature, pressure_uncompensated: u32) -> Pressure {
+    fn compensate_pressure(
+        &self,
+        temperature: ThermodynamicTemperature,
+        pressure_uncompensated: u32,
+    ) -> Pressure {
         // This could be done in fewer expressions, but it's broken down for clarity and to match the datasheet
         let uncompensated = pressure_uncompensated as f32;
         let temperature = temperature.get::<degree_celsius>();
@@ -314,12 +318,14 @@ impl CalibrationCoefficients {
         let partial_data1 = self.par_p2 * temperature;
         let partial_data2 = self.par_p3 * temperature * temperature;
         let partial_data3 = self.par_p4 * temperature * temperature * temperature;
-        let partial_out2 = uncompensated * (self.par_p1 + partial_data1 + partial_data2 + partial_data3);
+        let partial_out2 =
+            uncompensated * (self.par_p1 + partial_data1 + partial_data2 + partial_data3);
 
         let partial_data1 = uncompensated * uncompensated;
         let partial_data2 = self.par_p9 + self.par_p10 * temperature;
         let partial_data3 = partial_data1 * partial_data2;
-        let partial_data4 = partial_data3 + uncompensated * uncompensated * uncompensated * self.par_p11;
+        let partial_data4 =
+            partial_data3 + uncompensated * uncompensated * uncompensated * self.par_p11;
 
         let pressure = partial_out1 + partial_out2 + partial_data4;
         Pressure::new::<pascal>(pressure)
@@ -537,7 +543,9 @@ where
 
     /// Calculate the altitude based on the pressure and calibrated pressure.
     fn calculate_altitude(pressure: Pressure, sea_level_pressure: Pressure) -> Length {
-        Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level_pressure).value, 0.190284)))
+        Length::new::<foot>(
+            145366.45 * (1.0 - powf((pressure / sea_level_pressure).value, 0.190284)),
+        )
     }
 }
 
@@ -571,7 +579,10 @@ mod tests {
     impl Default for CalibrationCoefficients {
         fn default() -> Self {
             // NVM_PAR registers (0x31 .. 0x45) from a real BMP390, rev 0x01
-            Self::from_registers(&[0x98, 0x6c, 0xa9, 0x4a, 0xf9, 0xe3, 0x1c, 0x61, 0x16, 0x06, 0x01, 0x51, 0x4a, 0xde, 0x5d, 0x03, 0xfa, 0xf9, 0x0e, 0x06, 0xf5])
+            Self::from_registers(&[
+                0x98, 0x6c, 0xa9, 0x4a, 0xf9, 0xe3, 0x1c, 0x61, 0x16, 0x06, 0x01, 0x51, 0x4a, 0xde,
+                0x5d, 0x03, 0xfa, 0xf9, 0x0e, 0x06, 0xf5,
+            ])
         }
     }
 
@@ -645,7 +656,8 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let temperature = bmp390.temperature().await.unwrap();
         assert_eq!(temperature, expected_temperature());
         i2c.done();
@@ -663,7 +675,8 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let pressure = bmp390.pressure().await.unwrap();
         assert_eq!(pressure, expected_pressure());
         i2c.done();
@@ -679,7 +692,8 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let measurement = bmp390.measure().await.unwrap();
         assert_eq!(measurement.temperature, expected_temperature());
         assert_eq!(measurement.pressure, expected_pressure());
@@ -698,8 +712,12 @@ mod tests {
         )];
 
         let mut i2c = Mock::new(&expectations);
-        let mut bmp390 = Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-        let altitude = bmp390.altitude(Pressure::new::<millibar>(1013.25)).await.unwrap();
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let altitude = bmp390
+            .altitude(Pressure::new::<millibar>(1013.25))
+            .await
+            .unwrap();
         assert_eq!(altitude.get::<meter>(), expected_altitude().get::<meter>());
         i2c.done();
     }
