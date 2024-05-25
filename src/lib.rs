@@ -22,6 +22,7 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
 //! # Datasheet
 //! The [BMP390 Datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf)
 //! contains detailed information about the sensor's features, electrical characteristics, and registers. This package
@@ -34,7 +35,7 @@ use embedded_hal_async::{delay::DelayNs, i2c::I2c};
 use libm::powf;
 use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
 use uom::si::length::{foot, meter};
-use uom::si::pressure::{millibar, pascal};
+use uom::si::pressure::{hectopascal, pascal};
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 mod registers;
@@ -397,7 +398,47 @@ impl Configuration {
     }
 }
 
-/// BMP390 barometer driver.
+/// A driver for the BMP390 pressure sensor over any [`I2c`] implementation.
+///
+/// This driver utilizes [`uom`] to provide automatic, type-safe, and zero-cost units of measurement. Measurements can
+/// be retrieved with [`Bmp390::measure`], which returns a [`Measurement`] struct containing the pressure, temperature,
+/// and altitude. The altitude is calculated based on the pressure and a reference pressure, which can be set with
+/// [`Bmp390::set_reference_pressure`]. If the reference pressure is not set, the altitude will be calculated based on
+/// the standard atmospheric pressure at sea level, 1013.25 hPa.
+///
+/// # Example
+/// ```no_run
+/// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+/// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+/// use bmp390::Bmp390;
+/// let config = bmp390::Configuration::default();
+/// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+/// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+/// let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+/// let measurement = sensor.measure().await?;
+/// defmt::info!("Measurement: {}", measurement);
+/// # Ok(())
+/// # }
+/// ```
+///
+/// A reference pressure can be set to calculate the altitude relative to a different reference point:
+/// ```no_run
+/// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+/// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+/// # use bmp390::Bmp390;
+/// # let config = bmp390::Configuration::default();
+/// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+/// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+/// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+/// let measurement = sensor.measure().await?;
+/// sensor.set_reference_pressure(measurement.pressure);
+///
+/// // Some time later...
+/// let measurement = sensor.measure().await?;
+/// defmt::info!("Altitude: {}", measurement.altitude.get::<uom::si::length::meter>());
+/// # Ok(())
+/// # }
+/// ```
 pub struct Bmp390<I> {
     /// The I2C bus the barometer is connected to.
     i2c: I,
@@ -407,6 +448,13 @@ pub struct Bmp390<I> {
 
     /// The calibration coefficients for the barometer to compensate temperature and pressure measurements.
     coefficients: CalibrationCoefficients,
+
+    /// The reference pressure for altitude calculations.
+    ///
+    /// By default, this is set to the standard atmospheric pressure at sea level, 1013.25 hPa. It can be set to a
+    /// different value using [`Bmp390::set_reference_pressure`] to calculate the altitude relative to a different
+    /// reference point.
+    altitude_reference: Pressure,
 }
 
 impl<I, E> Bmp390<I>
@@ -482,6 +530,7 @@ where
             i2c,
             address,
             coefficients,
+            altitude_reference: Pressure::new::<hectopascal>(1013.25),
         }
     }
 
@@ -508,6 +557,7 @@ where
         Ok(measurement.pressure)
     }
 
+    /// Measures the pressure and temperature from the barometer.
     pub async fn measure(&mut self) -> Result<Measurement, Error<E>> {
         // Burst read: only address DATA_0 (pressure XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_0.into()];
@@ -529,22 +579,32 @@ where
         Ok(Measurement {
             temperature,
             pressure,
-            altitude: Self::calculate_altitude(pressure, Pressure::new::<millibar>(1013.25)),
+            altitude: self.calculate_altitude(pressure),
         })
     }
 
-    /// Calculate the altitude based on the pressure and calibrated pressure.
+    /// Set the reference pressure for altitude calculations.
     ///
-    /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
-    pub async fn altitude(&mut self, sea_level_pressure: Pressure) -> Result<Length, Error<E>> {
-        let pressure = self.pressure().await?;
-        Ok(Self::calculate_altitude(pressure, sea_level_pressure))
+    /// Following this, the altitude can be calculated using [`Bmp390::altitude`]. If the current pressure matches
+    /// the reference pressure, the altitude will be 0.
+    pub fn set_reference_pressure(&mut self, pressure: Pressure) {
+        self.altitude_reference = pressure;
     }
 
-    /// Calculate the altitude based on the pressure and calibrated pressure.
-    fn calculate_altitude(pressure: Pressure, sea_level_pressure: Pressure) -> Length {
+    /// Retrieve the latest pressure measurement and calculate the altitude based on this and the reference pressure.
+    ///
+    /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+    pub async fn altitude(&mut self) -> Result<Length, Error<E>> {
+        let pressure = self.pressure().await?;
+        Ok(self.calculate_altitude(pressure))
+    }
+
+    /// Calculate the altitude based on the pressure and reference pressure.
+    ///
+    /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+    fn calculate_altitude(&self, pressure: Pressure) -> Length {
         Length::new::<foot>(
-            145366.45 * (1.0 - powf((pressure / sea_level_pressure).value, 0.190284)),
+            145366.45 * (1.0 - powf((pressure / self.altitude_reference).value, 0.190284)),
         )
     }
 }
@@ -553,6 +613,7 @@ where
 mod tests {
     use embedded_hal_mock::eh1::delay::{CheckedDelay, NoopDelay, Transaction as DelayTransaction};
     use embedded_hal_mock::eh1::i2c::{Mock, Transaction as I2cTransaction};
+    use uom::ConstZero;
 
     use super::*;
 
@@ -572,6 +633,7 @@ mod tests {
         ThermodynamicTemperature::new::<degree_celsius>(25.770_746)
     }
 
+    /// The [`Measurement::altitude`] value for [`expected_pressure()`] and a reference pressure of 1013.25 hPa.
     fn expected_altitude() -> Length {
         Length::new::<meter>(248.78754)
     }
@@ -714,11 +776,29 @@ mod tests {
         let mut i2c = Mock::new(&expectations);
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-        let altitude = bmp390
-            .altitude(Pressure::new::<millibar>(1013.25))
-            .await
-            .unwrap();
-        assert_eq!(altitude.get::<meter>(), expected_altitude().get::<meter>());
+        let altitude = bmp390.altitude().await.unwrap();
+        assert_eq!(altitude, expected_altitude());
+        i2c.done();
+    }
+
+    #[tokio::test]
+    async fn test_altitude_custom_reference() {
+        let addr = Address::Up;
+
+        // NOTE: a pressure read requires a temperature read, so response is 6 bytes
+        let expectations = [I2cTransaction::write_read(
+            addr.into(),
+            vec![Register::DATA_0.into()],
+            PRESSURE_TEMPERATURE_BYTES.to_vec(),
+        )];
+
+        let mut i2c = Mock::new(&expectations);
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+
+        bmp390.set_reference_pressure(expected_pressure());
+        let altitude = bmp390.altitude().await.unwrap();
+        assert_eq!(altitude, Length::ZERO);
         i2c.done();
     }
 
