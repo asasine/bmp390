@@ -183,7 +183,7 @@ dependencies = [
 [[package]]
 name = "embedded-hal-mock"
 version = "0.10.0"
-source = "git+https://github.com/asasine/embedded-hal-mock?branch=feat/asasine/async-i2c#5f7fd16c62851dddaacc3b75dd53beee64cb1aa9"
+source = "git+https://github.com/dbrgn/embedded-hal-mock#2219ed2a553e54bc15c7a39a07a6c6529857b702"
 dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",

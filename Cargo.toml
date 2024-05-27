@@ -29,5 +29,5 @@ embedded-hal-mock = { version = "0.10.0", default-features = false, features = [
 tokio = { version = "1.37.0", features = ["macros", "rt"] }
 
 [patch.crates-io]
-# Until https://github.com/dbrgn/embedded-hal-mock/pull/119 is merged (async I2C mock)
-embedded-hal-mock = { git = "https://github.com/asasine/embedded-hal-mock", branch = "feat/asasine/async-i2c" }
+# Until https://github.com/dbrgn/embedded-hal-mock/pull/119 is released (async I2C mock)
+embedded-hal-mock = { git = "https://github.com/dbrgn/embedded-hal-mock" }
