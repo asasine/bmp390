@@ -22,12 +22,8 @@ uom = { version = "0.36.0", default-features = false, features = ["f32", "si", "
 
 [dev-dependencies]
 defmt = { version = "0.3.8", features = [ "unstable-test" ] }
-embedded-hal-mock = { version = "0.10.0", default-features = false, features = [
+embedded-hal-mock = { version = "0.11.0", default-features = false, features = [
     "eh1",
     "embedded-hal-async",
 ] }
 tokio = { version = "1.37.0", features = ["macros", "rt"] }
-
-[patch.crates-io]
-# Until https://github.com/dbrgn/embedded-hal-mock/pull/119 is released (async I2C mock)
-embedded-hal-mock = { git = "https://github.com/dbrgn/embedded-hal-mock" }

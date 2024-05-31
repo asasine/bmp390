@@ -182,8 +182,9 @@ dependencies = [
 
 [[package]]
 name = "embedded-hal-mock"
-version = "0.10.0"
-source = "git+https://github.com/dbrgn/embedded-hal-mock#2219ed2a553e54bc15c7a39a07a6c6529857b702"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ab4245377154a91815fc7b070cfc8466b1cf8f8e1fad18755eda20f167d4f58"
 dependencies = [
  "embedded-hal 1.0.0",
  "embedded-hal-async",
