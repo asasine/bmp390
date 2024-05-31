@@ -409,33 +409,14 @@ impl Configuration {
 /// # Example
 /// ```no_run
 /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-/// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
 /// use bmp390::Bmp390;
+/// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
 /// let config = bmp390::Configuration::default();
 /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
 /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 /// let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
 /// let measurement = sensor.measure().await?;
 /// defmt::info!("Measurement: {}", measurement);
-/// # Ok(())
-/// # }
-/// ```
-///
-/// A reference altitude can be set to calculate the altitude relative to a different reference point:
-/// ```no_run
-/// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-/// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
-/// # use bmp390::Bmp390;
-/// # let config = bmp390::Configuration::default();
-/// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
-/// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
-/// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
-/// let measurement = sensor.measure().await?;
-/// sensor.set_reference_altitude(measurement.altitude);
-///
-/// // Some time later...
-/// let measurement = sensor.measure().await?;
-/// defmt::info!("Altitude: {}", measurement.altitude.get::<uom::si::length::meter>());
 /// # Ok(())
 /// # }
 /// ```
@@ -464,6 +445,21 @@ where
     /// Creates a new BMP390 driver. This will initialize the barometer with the provided configuration.
     /// It will additionally delay for 2 ms to allow the barometer to start up and read the calibration coefficients
     /// for temperature and pressure measuring.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// use bmp390::Bmp390;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let measurement = sensor.measure().await?;
+    /// defmt::info!("Measurement: {}", measurement);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn try_new<D: DelayNs>(
         mut i2c: I,
         address: Address,
@@ -534,7 +530,23 @@ where
         }
     }
 
-    /// Reads the temperature from the barometer.
+    /// Reads the temperature from the barometer as a [`ThermodynamicTemperature`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::Bmp390;
+    /// use uom::si::thermodynamic_temperature::degree_celsius;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let temperature = sensor.temperature().await?;
+    /// defmt::info!("Temperature: {} °C", temperature.get::<degree_celsius>());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn temperature(&mut self) -> Result<ThermodynamicTemperature, Error<E>> {
         // Burst read: only address DATA_3 (temperature XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_3.into()];
@@ -550,7 +562,23 @@ where
         Ok(temperature)
     }
 
-    /// Reads the pressure from the barometer.
+    /// Reads the pressure from the barometer as a [`Pressure`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::Bmp390;
+    /// use uom::si::pressure::hectopascal;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let pressure = sensor.pressure().await?;
+    /// defmt::info!("Pressure: {} hPa", pressure.get::<hectopascal>());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn pressure(&mut self) -> Result<Pressure, Error<E>> {
         // pressure requires temperature to compensate, so just measure both
         let measurement = self.measure().await?;
@@ -558,6 +586,21 @@ where
     }
 
     /// Measures the pressure and temperature from the barometer.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::Bmp390;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let measurement = sensor.measure().await?;
+    /// defmt::info!("Measurement: {}", measurement);
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn measure(&mut self) -> Result<Measurement, Error<E>> {
         // Burst read: only address DATA_0 (pressure XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_0.into()];
@@ -587,13 +630,49 @@ where
     ///
     /// Following this, the altitude can be calculated using [`Bmp390::altitude`]. If the current pressure matches
     /// the pressure when the reference altitude is set, the altitude will be 0.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::Bmp390;
+    /// # use uom::si::length::meter;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let initial_altitude = sensor.altitude().await?;
+    /// sensor.set_reference_altitude(initial_altitude);
+    ///
+    /// // Some time later...
+    /// let altitude = sensor.altitude().await?;
+    /// defmt::info!("Altitude: {} meters", altitude.get::<meter>());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn set_reference_altitude(&mut self, altitude: Length) {
         self.altitude_reference = altitude;
     }
 
-    /// Retrieve the latest pressure measurement and calculate the altitude based on this and the reference pressure.
+    /// Calculates the latest altitude measurement as a [`Length`] after retrieving the latest pressure measurement.
     ///
     /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::Bmp390;
+    /// use uom::si::length::foot;
+    /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
+    /// let altitude = sensor.altitude().await?;
+    /// defmt::info!("Length: {} feet", altitude.get::<foot>());
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn altitude(&mut self) -> Result<Length, Error<E>> {
         let pressure = self.pressure().await?;
         Ok(self.calculate_altitude(pressure))
