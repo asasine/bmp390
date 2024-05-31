@@ -402,9 +402,9 @@ impl Configuration {
 ///
 /// This driver utilizes [`uom`] to provide automatic, type-safe, and zero-cost units of measurement. Measurements can
 /// be retrieved with [`Bmp390::measure`], which returns a [`Measurement`] struct containing the pressure, temperature,
-/// and altitude. The altitude is calculated based on the pressure and a reference pressure, which can be set with
-/// [`Bmp390::set_reference_pressure`]. If the reference pressure is not set, the altitude will be calculated based on
-/// the standard atmospheric pressure at sea level, 1013.25 hPa.
+/// and altitude. The altitude is calculated based on the current pressure, standard atmospheric pressure at sea level,
+/// and a reference altitude, which can be set with [`Bmp390::set_reference_altitude`]. The reference altitude defaults
+/// to zero, so the default altitude is measured from sea level.
 ///
 /// # Example
 /// ```no_run
@@ -421,7 +421,7 @@ impl Configuration {
 /// # }
 /// ```
 ///
-/// A reference pressure can be set to calculate the altitude relative to a different reference point:
+/// A reference altitude can be set to calculate the altitude relative to a different reference point:
 /// ```no_run
 /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
 /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
@@ -431,7 +431,7 @@ impl Configuration {
 /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
 /// let measurement = sensor.measure().await?;
-/// sensor.set_reference_pressure(measurement.pressure);
+/// sensor.set_reference_altitude(measurement.altitude);
 ///
 /// // Some time later...
 /// let measurement = sensor.measure().await?;
@@ -449,12 +449,12 @@ pub struct Bmp390<I> {
     /// The calibration coefficients for the barometer to compensate temperature and pressure measurements.
     coefficients: CalibrationCoefficients,
 
-    /// The reference pressure for altitude calculations.
+    /// The reference altitude for altitude calculations.
     ///
-    /// By default, this is set to the standard atmospheric pressure at sea level, 1013.25 hPa. It can be set to a
-    /// different value using [`Bmp390::set_reference_pressure`] to calculate the altitude relative to a different
+    /// By default, this is zero. set to the standard atmospheric pressure at sea level, 1013.25 hPa. It can be set to
+    /// a different value using [`Bmp390::set_reference_altitude`] to calculate the altitude relative to a different
     /// reference point.
-    altitude_reference: Pressure,
+    altitude_reference: Length,
 }
 
 impl<I, E> Bmp390<I>
@@ -530,7 +530,7 @@ where
             i2c,
             address,
             coefficients,
-            altitude_reference: Pressure::new::<hectopascal>(1013.25),
+            altitude_reference: Length::new::<meter>(0.0),
         }
     }
 
@@ -583,12 +583,12 @@ where
         })
     }
 
-    /// Set the reference pressure for altitude calculations.
+    /// Set the reference altitude for altitude calculations.
     ///
     /// Following this, the altitude can be calculated using [`Bmp390::altitude`]. If the current pressure matches
-    /// the reference pressure, the altitude will be 0.
-    pub fn set_reference_pressure(&mut self, pressure: Pressure) {
-        self.altitude_reference = pressure;
+    /// the pressure when the reference altitude is set, the altitude will be 0.
+    pub fn set_reference_altitude(&mut self, altitude: Length) {
+        self.altitude_reference = altitude;
     }
 
     /// Retrieve the latest pressure measurement and calculate the altitude based on this and the reference pressure.
@@ -599,13 +599,15 @@ where
         Ok(self.calculate_altitude(pressure))
     }
 
-    /// Calculate the altitude based on the pressure and reference pressure.
+    /// Calculate the altitude based on the pressure, sea level pressure, and the reference altitude.
     ///
     /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
     fn calculate_altitude(&self, pressure: Pressure) -> Length {
-        Length::new::<foot>(
-            145366.45 * (1.0 - powf((pressure / self.altitude_reference).value, 0.190284)),
-        )
+        let sea_level = Pressure::new::<hectopascal>(1013.25);
+        let above_sea_level =
+            Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level).value, 0.190284)));
+
+        above_sea_level - self.altitude_reference
     }
 }
 
@@ -796,7 +798,7 @@ mod tests {
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
 
-        bmp390.set_reference_pressure(expected_pressure());
+        bmp390.set_reference_altitude(expected_altitude());
         let altitude = bmp390.altitude().await.unwrap();
         assert_eq!(altitude, Length::ZERO);
         i2c.done();
