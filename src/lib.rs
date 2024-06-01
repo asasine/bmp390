@@ -28,7 +28,7 @@
 //! contains detailed information about the sensor's features, electrical characteristics, and registers. This package
 //! implements the functionality described in the datasheet and references the relevant sections in the documentation.
 
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 
 use defmt::{debug, trace, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
@@ -692,6 +692,9 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+    use std::prelude::rust_2021::*;
+    use std::vec;
     use embedded_hal_mock::eh1::delay::{CheckedDelay, NoopDelay, Transaction as DelayTransaction};
     use embedded_hal_mock::eh1::i2c::{Mock, Transaction as I2cTransaction};
     use uom::ConstZero;
