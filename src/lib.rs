@@ -693,10 +693,10 @@ where
 #[cfg(test)]
 mod tests {
     extern crate std;
-    use std::prelude::rust_2021::*;
-    use std::vec;
     use embedded_hal_mock::eh1::delay::{CheckedDelay, NoopDelay, Transaction as DelayTransaction};
     use embedded_hal_mock::eh1::i2c::{Mock, Transaction as I2cTransaction};
+    use std::prelude::rust_2021::*;
+    use std::vec;
     use uom::ConstZero;
 
     use super::*;
