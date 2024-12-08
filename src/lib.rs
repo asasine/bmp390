@@ -246,6 +246,20 @@ impl CalibrationCoefficients {
         Ok(Self::from_registers(&calibration_coefficient_regs))
     }
 
+    fn try_from_i2c_sync<I: embedded_hal::i2c::I2c>(
+        address: Address,
+        i2c: &mut I,
+    ) -> Result<Self, Error<I::Error>> {
+        let mut calibration_coefficient_regs = [0; 21];
+        i2c.write_read(
+            address.into(),
+            &Self::write_read_write_transaction(),
+            &mut calibration_coefficient_regs,
+        )
+        .map_err(Error::I2c)?;
+        Ok(Self::from_registers(&calibration_coefficient_regs))
+    }
+
     /// Calculate the calibration coefficients from the raw register data in registers [`Register::NVM_PAR_T1_0`] to
     /// [`Register::NVM_PAR_P11`].
     ///
@@ -682,11 +696,182 @@ where
     ///
     /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
     fn calculate_altitude(&self, pressure: Pressure) -> Length {
-        let sea_level = Pressure::new::<hectopascal>(1013.25);
-        let above_sea_level =
-            Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level).value, 0.190284)));
+        calculate_altitude(pressure, self.altitude_reference)
+    }
+}
 
-        above_sea_level - self.altitude_reference
+/// Common altitude calculation used by both sync and async implementations.
+fn calculate_altitude(pressure: Pressure, altitude_reference: Length) -> Length {
+    let sea_level = Pressure::new::<hectopascal>(1013.25);
+    let above_sea_level =
+        Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level).value, 0.190284)));
+    above_sea_level - altitude_reference
+}
+
+/// Sync namespace
+pub mod sync {
+    //! Sync BMP390 driver.
+    //!
+    //! # Example
+    //! ```no_run
+    //! use bmp390::{sync::Bmp390, Address, Configuration};
+    //! use embedded_hal::{delay::DelayNs, i2c::I2c};
+    //! // Assume `i2c` and `delay` implement these traits
+    //! let config = Configuration::default();
+    //! let mut sensor = Bmp390::try_new(i2c, Address::Up, delay, &config).unwrap();
+    //! let measurement = sensor.measure().unwrap();
+    //! defmt::info!("Measurement: {}", measurement);
+    //! ```
+
+    use super::{
+        calculate_altitude, Address, CalibrationCoefficients, Configuration, Error, Measurement,
+    };
+    use embedded_hal::{delay::DelayNs, i2c::I2c};
+    use uom::si::f32::Length;
+
+    /// Sync BMP390 driver.
+    pub struct Bmp390<I> {
+        i2c: I,
+        address: Address,
+        coefficients: CalibrationCoefficients,
+        altitude_reference: Length,
+    }
+
+    impl<I, E> Bmp390<I>
+    where
+        I: I2c<Error = E>,
+    {
+        /// Creates a new BMP390 driver.
+        ///
+        /// # Example
+        /// ```no_run
+        /// use bmp390::{sync::Bmp390, Address, Configuration};
+        /// use embedded_hal::{delay::DelayNs, i2c::I2c};
+        /// // Assume `i2c` and `delay` implement these traits
+        /// let config = Configuration::default();
+        /// let mut sensor = Bmp390::try_new(i2c, Address::Up, delay, &config).unwrap();
+        /// let measurement = sensor.measure().unwrap();
+        /// defmt::info!("Measurement: {}", measurement);
+        /// ```
+        pub fn try_new<D: DelayNs>(
+            mut i2c: I,
+            address: Address,
+            mut delay: D,
+            config: &Configuration,
+        ) -> Result<Self, Error<E>> {
+            delay.delay_ms(2);
+
+            let mut data = [0; 2];
+            i2c.write_read(
+                address.into(),
+                &[super::Register::CHIP_ID.into()],
+                &mut data,
+            )
+            .map_err(Error::I2c)?;
+
+            let chip_id = data[0];
+            let rev_id = data[1];
+
+            super::debug!("CHIP_ID = {=u8:#04x}; REV_ID = {=u8:#04x}", chip_id, rev_id);
+            if chip_id != 0x60 {
+                return Err(Error::WrongChip(chip_id));
+            }
+
+            let mut data = [0; 2];
+            i2c.write_read(address.into(), &[super::Register::EVENT.into()], &mut data)
+                .map_err(Error::I2c)?;
+
+            i2c.write(address.into(), &config.to_write_bytes())
+                .map_err(Error::I2c)?;
+
+            let mut err_reg = [0; 1];
+            i2c.write_read(
+                address.into(),
+                &[super::Register::ERR_REG.into()],
+                &mut err_reg,
+            )
+            .map_err(Error::I2c)?;
+            let err_reg = super::ErrReg::from(err_reg[0]);
+            if err_reg.fatal_err {
+                return Err(Error::Fatal);
+            } else if err_reg.cmd_err {
+                return Err(Error::Command);
+            } else if err_reg.conf_err {
+                return Err(Error::Configuration);
+            }
+
+            let coefficients = CalibrationCoefficients::try_from_i2c_sync(address, &mut i2c)?;
+
+            Ok(Self {
+                i2c,
+                address,
+                coefficients,
+                altitude_reference: Length::new::<uom::si::length::meter>(0.0),
+            })
+        }
+
+        /// Reads the temperature from the barometer.
+        pub fn temperature(&mut self) -> Result<uom::si::f32::ThermodynamicTemperature, Error<E>> {
+            let mut read = [0; 3];
+            self.i2c
+                .write_read(
+                    self.address.into(),
+                    &[super::Register::DATA_3.into()],
+                    &mut read,
+                )
+                .map_err(Error::I2c)?;
+
+            let temperature =
+                u32::from(read[0]) | u32::from(read[1]) << 8 | u32::from(read[2]) << 16;
+            Ok(self.coefficients.compensate_temperature(temperature))
+        }
+
+        /// Reads the pressure from the barometer.
+        pub fn pressure(&mut self) -> Result<uom::si::f32::Pressure, Error<E>> {
+            let measurement = self.measure()?;
+            Ok(measurement.pressure)
+        }
+
+        /// Measures the pressure and temperature from the barometer.
+        pub fn measure(&mut self) -> Result<Measurement, Error<E>> {
+            let mut read = [0; 6];
+            self.i2c
+                .write_read(
+                    self.address.into(),
+                    &[super::Register::DATA_0.into()],
+                    &mut read,
+                )
+                .map_err(Error::I2c)?;
+
+            super::trace!("DATA = {=[u8]:#04x}", read);
+
+            let temperature_raw =
+                u32::from(read[3]) | u32::from(read[4]) << 8 | u32::from(read[5]) << 16;
+            let temperature = self.coefficients.compensate_temperature(temperature_raw);
+
+            let pressure_raw =
+                u32::from(read[0]) | u32::from(read[1]) << 8 | u32::from(read[2]) << 16;
+            let pressure = self
+                .coefficients
+                .compensate_pressure(temperature, pressure_raw);
+
+            Ok(Measurement {
+                temperature,
+                pressure,
+                altitude: calculate_altitude(pressure, self.altitude_reference),
+            })
+        }
+
+        /// Set the reference altitude for altitude calculations.
+        pub fn set_reference_altitude(&mut self, altitude: Length) {
+            self.altitude_reference = altitude;
+        }
+
+        /// Calculates the latest altitude measurement.
+        pub fn altitude(&mut self) -> Result<Length, Error<E>> {
+            let pressure = self.pressure()?;
+            Ok(calculate_altitude(pressure, self.altitude_reference))
+        }
     }
 }
 
