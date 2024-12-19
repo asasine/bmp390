@@ -1,5 +1,15 @@
 //! This module provides a synchronous verison of the [`Bmp390`] driver, built on top of [`embedded_hal::i2c`].
 //!
+//! The BMP390 is a digital sensor with pressure and temperature measurement based on proven sensing principles. The
+//! sensor is more accurate than its predecessor BMP380, covering a wider measurement range. It offers new interrupt
+//! functionality, lower power consumption, and a new FIFO functionality. The integrated 512 byte FIFO buffer supports
+//! low power applications and prevents data loss in non-real-time systems.
+//!
+//! [`Bmp390`] is a driver for the BMP390 sensor. It provides methods to read the temperature and pressure from the
+//! sensor over [I2C](https://en.wikipedia.org/wiki/I%C2%B2C). It is built on top of the [`embedded_hal::i2c`]
+//! traits to be compatible with a wide range of embedded platforms. Measurements utilize the [`uom`] crate to provide
+//! automatic, type-safe, and zero-cost units of measurement for [`Measurement`].
+//!
 //! # Example
 //! ```no_run
 //! # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
@@ -25,6 +35,8 @@ use embedded_hal::{delay::DelayNs, i2c::I2c};
 use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
 
 impl CalibrationCoefficients {
+    /// Read the calibration coefficients from the BMP390's NVM registers and convert them to into a set of
+    /// floating-point calibration coefficients for the formulas implemented in the compensation functions.
     fn try_from_i2c_sync<I: embedded_hal::i2c::I2c>(
         address: Address,
         i2c: &mut I,
@@ -36,6 +48,7 @@ impl CalibrationCoefficients {
             &mut calibration_coefficient_regs,
         )
         .map_err(Error::I2c)?;
+
         Ok(Self::from_registers(&calibration_coefficient_regs))
     }
 }
