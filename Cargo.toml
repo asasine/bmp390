@@ -12,9 +12,11 @@ categories = ["aerospace", "embedded", "hardware-support", "no-std"]
 
 [features]
 embassy-time = ["dep:embassy-time"]
+sync = ["dep:embedded-hal"]
 
 [dependencies]
 embedded-hal-async = "1.0.0"
+embedded-hal = { version= "1.0.0", optional = true}
 embassy-time = { version = "0.3.0", optional = true }
 defmt = "0.3.8"
 libm = "0.2.8"
@@ -26,4 +28,5 @@ embedded-hal-mock = { version = "0.11.0", default-features = false, features = [
     "eh1",
     "embedded-hal-async",
 ] }
+linux-embedded-hal = "0.4.0"
 tokio = { version = "1.37.0", features = ["macros", "rt"] }

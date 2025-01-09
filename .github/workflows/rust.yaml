@@ -23,6 +23,8 @@ jobs:
       run: cargo build --verbose --all-features --all-targets
     - name: Run tests
       run: cargo test --verbose --no-fail-fast --all-features --all-targets
+    - name: Run doc tests
+      run: cargo test --verbose --no-fail-fast --all-features --doc
 
   format:
     name: Check code formatting

@@ -39,6 +39,10 @@ use uom::si::pressure::{hectopascal, pascal};
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 mod registers;
+
+#[cfg(feature = "sync")]
+pub mod sync;
+
 pub use registers::*;
 
 /// Errors that can occur when communicating with the BMP390 barometer.
@@ -60,6 +64,8 @@ pub enum Error<E> {
     Configuration,
 }
 
+/// Note: [`embedded_hal_async::i2c::ErrorKind`] is an alias for [`embedded_hal::i2c::ErrorKind`], so the one impl
+/// covers both.
 impl From<embedded_hal_async::i2c::ErrorKind> for Error<embedded_hal_async::i2c::ErrorKind> {
     fn from(error: embedded_hal_async::i2c::ErrorKind) -> Self {
         Error::I2c(error)
@@ -622,7 +628,7 @@ where
         Ok(Measurement {
             temperature,
             pressure,
-            altitude: self.calculate_altitude(pressure),
+            altitude: calculate_altitude(pressure, self.altitude_reference),
         })
     }
 
@@ -675,19 +681,19 @@ where
     /// ```
     pub async fn altitude(&mut self) -> Result<Length, Error<E>> {
         let pressure = self.pressure().await?;
-        Ok(self.calculate_altitude(pressure))
+        Ok(calculate_altitude(pressure, self.altitude_reference))
     }
+}
 
-    /// Calculate the altitude based on the pressure, sea level pressure, and the reference altitude.
-    ///
-    /// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
-    fn calculate_altitude(&self, pressure: Pressure) -> Length {
-        let sea_level = Pressure::new::<hectopascal>(1013.25);
-        let above_sea_level =
-            Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level).value, 0.190284)));
+/// Calculate the altitude based on the pressure, sea level pressure, and the reference altitude.
+///
+/// The altitude is calculating following the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+fn calculate_altitude(pressure: Pressure, altitude_reference: Length) -> Length {
+    let sea_level = Pressure::new::<hectopascal>(1013.25);
+    let above_sea_level =
+        Length::new::<foot>(145366.45 * (1.0 - powf((pressure / sea_level).value, 0.190284)));
 
-        above_sea_level - self.altitude_reference
-    }
+    above_sea_level - altitude_reference
 }
 
 #[cfg(test)]
