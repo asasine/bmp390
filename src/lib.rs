@@ -27,8 +27,15 @@
 //! The [BMP390 Datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf)
 //! contains detailed information about the sensor's features, electrical characteristics, and registers. This package
 //! implements the functionality described in the datasheet and references the relevant sections in the documentation.
+//!
+//! # Synchronous API
+//! The synchronous API is available behind the `sync` feature flag. It's driver is [`sync::Bmp390`] and functions
+//! similarly to the asynchronous driver, but with synchronous methods.
+//!
+//! By default, the synchronous API is disabled.
 
 #![no_std]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
 
 use defmt::{debug, trace, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
