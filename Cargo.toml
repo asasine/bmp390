@@ -10,6 +10,9 @@ license = "MIT"
 keywords = ["embedded-hal", "async", "pressure", "sensor"]
 categories = ["aerospace", "embedded", "hardware-support", "no-std"]
 
+[package.metadata.docs.rs]
+all-features = true
+
 [features]
 embassy-time = ["dep:embassy-time"]
 sync = ["dep:embedded-hal"]
