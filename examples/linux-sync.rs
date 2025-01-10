@@ -33,7 +33,7 @@ struct Args {
 
 impl Args {
     fn delay_ms(&self) -> u32 {
-        (1000.0 / self.frequency) as u32
+        (1000.0 / self.frequency).floor() as u32
     }
 }
 
@@ -69,4 +69,3 @@ fn main() {
         }
     }
 }
-
