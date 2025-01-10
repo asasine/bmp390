@@ -197,6 +197,18 @@ impl Format for Measurement {
     }
 }
 
+impl core::fmt::Display for Measurement {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "Pressure: {} Pa, Temperature: {} °C, Altitude: {} m",
+            self.pressure.get::<pascal>(),
+            self.temperature.get::<degree_celsius>(),
+            self.altitude.get::<meter>(),
+        )
+    }
+}
+
 /// The BMP390 barometer's I2C addresses, either `0x76` or `0x77`.
 ///
 ///  The BMP390 can be configured to use two different addresses by either pulling the `SDO` pin down to `GND`
