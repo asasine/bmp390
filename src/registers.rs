@@ -322,7 +322,7 @@ pub enum Register {
     /// | Bit | Name | Description |
     /// | --- | ---- | ----------- |
     /// | 2..0 | `fifo_subsampling` | FIFO downsampling selection for pressure and temperature data. Factor is `2 ^ fifo_subsampling` |
-    /// | 4..3 | `data_select` | Select data source for pressure and temperature. <br/> `0`: unfiltered data (compensated or uncompensated) <br/> `23`: filtered data (compensated or uncompensated) <br/> `11` / `10`: reserved, same as for `unfilt` |
+    /// | 4..3 | `data_select` | Select data source for pressure and temperature. <br/> `0`: unfiltered data (compensated or uncompensated) <br/> `01`: filtered data (compensated or uncompensated) <br/> `11` / `10`: reserved, same as for `unfilt` |
     FIFO_CONFIG_2 = 0x18,
 
     /// Interrupt configuration, affecting [`Register::INT_STATUS`] and the `INT` pin.
