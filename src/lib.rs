@@ -45,6 +45,7 @@ use uom::si::length::{foot, meter};
 use uom::si::pressure::{hectopascal, pascal};
 use uom::si::thermodynamic_temperature::degree_celsius;
 
+pub mod fifo;
 mod registers;
 
 #[cfg(feature = "sync")]
