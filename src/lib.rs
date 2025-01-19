@@ -379,6 +379,9 @@ pub struct Configuration {
 
     /// IIR filter coefficient settings.
     pub iir_filter: Config,
+
+    /// FIFO settings.
+    pub fifo: FifoConfig,
 }
 
 impl Default for Configuration {
@@ -403,6 +406,15 @@ impl Default for Configuration {
             iir_filter: Config {
                 iir_filter: IirFilter::coef_15,
             },
+            fifo: FifoConfig {
+                fifo_mode: false,
+                fifo_stop_on_full: false,
+                fifo_time_en: false,
+                fifo_press_en: false,
+                fifo_temp_en: false,
+                fifo_subsampling: FifoSubsampling::None,
+                data_select: FifoDataSelect::Unfiltered,
+            }
         }
     }
 }
@@ -410,7 +422,8 @@ impl Default for Configuration {
 impl Configuration {
     /// Convert the configuration to a byte array that can be written to the BMP390's registers.
     /// The byte array contains both the register address and the register value.
-    pub fn to_write_bytes(&self) -> [u8; 8] {
+    pub fn to_write_bytes(&self) -> [u8; 12] {
+        let fifo: [u8; 2] = self.fifo.into();
         [
             Register::PWR_CTRL.into(),
             self.power_control.into(),
@@ -420,6 +433,10 @@ impl Configuration {
             self.output_data_rate.into(),
             Register::CONFIG.into(),
             self.iir_filter.into(),
+            Register::FIFO_CONFIG_1.into(),
+            fifo[0],
+            Register::FIFO_CONFIG_2.into(),
+            fifo[1],
         ]
     }
 }
