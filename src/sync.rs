@@ -27,6 +27,7 @@
 
 use crate::{
     calculate_altitude, registers::*, Address, CalibrationCoefficients, Configuration, Error,
+    fifo,
     Measurement,
 };
 
@@ -333,6 +334,120 @@ where
     pub fn altitude(&mut self) -> Result<Length, Error<E>> {
         let pressure = self.pressure()?;
         Ok(calculate_altitude(pressure, self.altitude_reference))
+    }
+
+    /// The current fill level of the FIFO buffer.
+    ///
+    /// # Caveats
+    /// This will return the number of bytes available in the FIFO buffer at the time it's read. However, each frame
+    /// consists of 2 to 7 bytes, so this is not the number of frames available. Additionally, the FIFO continues to
+    /// fill asynchronously, so this value will typically be less than the number of bytes that could be read from the
+    /// FIFO buffer in a subsequent burst read. Finally, if [`FifoConfig::fifo_time_en`] is enabled on the sensor, the
+    /// sensor appends a timestamp to the end of the FIFO buffer, but that frame's length is not included in this
+    /// count.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::sync::Bmp390;
+    /// # fn run() -> Result<(), bmp390::Error<embedded_hal::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config)?;
+    /// let fifo_length = sensor.fifo_length()?;
+    /// defmt::info!("Length: {}", fifo_length);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn fifo_length(&mut self) -> Result<u16, Error<E>> {
+        let write = &[Register::FIFO_LENGTH_0.into()];
+        let mut read = [0; 2]; // FIFO_LENGTH_0 (LSB), FIFO_LENGTH_1 (MSB)
+        self.i2c
+            .write_read(self.address.into(), write, &mut read)
+            .map_err(Error::I2c)?;
+
+        let length = u16::from_le_bytes(read);
+        Ok(length)
+    }
+
+    /// Reads `N` bytes from the FIFO buffer into `data`.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::sync::Bmp390;
+    /// # fn run() -> Result<(), bmp390::Error<embedded_hal::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config)?;
+    /// let mut data = [0; 512];
+    /// sensor.read_fifo(&mut data)?;
+    /// defmt::info!("Data: {=[u8]:#04x}", data);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn read_fifo<const N: usize>(&mut self, data: &mut [u8; N]) -> Result<(), Error<E>> {
+        let write = &[Register::FIFO_DATA.into()];
+        self.i2c
+            .write_read(self.address.into(), write, data)
+            .map_err(Error::I2c)?;
+
+        Ok(())
+    }
+
+
+    /// Reads the FIFO buffer into an iterator over frames of [`fifo::FifoData`].
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::sync::Bmp390;
+    /// # fn run() -> Result<(), bmp390::Error<embedded_hal::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config)?;
+    /// let iter = sensor.iter_fifo()?;
+    /// for frame in iter {
+    ///     defmt::info!("Data: {:?}", frame);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn iter_fifo(&mut self) -> Result<fifo::FifoIter<core::array::IntoIter<u8, 512>>, Error<E>> {
+        let mut frames = [0; 512];
+        self.read_fifo(&mut frames)?;
+        Ok(fifo::FifoIter::new(frames.into_iter()))
+    }
+
+    /// Flushes the FIFO buffer without resetting the FIFO configuration or sensor.
+    ///
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::sync::Bmp390;
+    /// # fn run() -> Result<(), bmp390::Error<embedded_hal::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config)?;
+    /// sensor.flush_fifo()?; // FIFO is now empty
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn flush_fifo(&mut self) -> Result<(), Error<E>> {
+        self.command(Command::FifoFlush)
+    }
+
+    /// Sends a command to the sensor.
+    fn command(&mut self, command: Command) -> Result<(), Error<E>> {
+        let command = Cmd { command };
+
+        self.i2c
+            .write(self.address.into(), &[Register::CMD.into(), command.into()])
+            .map_err(Error::I2c)
     }
 }
 
