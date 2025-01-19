@@ -1158,3 +1158,136 @@ impl From<Cmd> for u8 {
         cmd.command as u8
     }
 }
+
+/// [`Register::FIFO_CONFIG_1`] and [`Register::FIFO_CONFIG_2`] configure the FIFO settings.
+///
+/// # Datasheet
+/// 1. Section 4.3.13. Register 0x17 `FIFO_CONFIG_1`
+/// 1. Section 4.3.14. Register 0x18 `FIFO_CONFIG_2`
+///
+/// # Layout
+/// ## `FIFO_CONFIG_1`
+/// | Bits | Name | Field |
+/// | ---- | ---- | ----- |
+/// | 0 | `fifo_mode` | [`FifoConfig::fifo_mode`] |
+/// | 1 | `fifo_stop_on_full` | [`FifoConfig::fifo_stop_on_full`] |
+/// | 2 | `fifo_time_en` | [`FifoConfig::fifo_time_en`] |
+/// | 3 | `fifo_press_en` | [`FifoConfig::fifo_press_en`] |
+/// | 4 | `fifo_temp_en` | [`FifoConfig::fifo_temp_en`] |
+///
+/// ## `FIFO_CONFIG_2`
+/// | Bits | Name | Field |
+/// | ---- | ---- | ----- |
+/// | 2:0 | `fifo_subsampling` | [`FifoConfig::fifo_subsampling`] |
+/// | 4:3 | `data_select` | [`FifoConfig::data_select`] |
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
+pub struct FifoConfig {
+    /// Enables or disables the FIFO.
+    pub fifo_mode: bool,
+
+    /// Stop writing sampels into FIFO when FIFO is full.
+    ///
+    /// # Datasheet
+    /// Section 3.6.4. FIFO overflow behavior
+    pub fifo_stop_on_full: bool,
+
+    /// Return sensortime frame after the last valid data frame.
+    pub fifo_time_en: bool,
+
+    /// Store pressure data in FIFO.
+    pub fifo_press_en: bool,
+
+    /// Store temperature data in FIFO.
+    pub fifo_temp_en: bool,
+
+    /// FIFO downsampling selection for pressure and temperature data. Factor is `2 ^ fifo_subsampling`.
+    pub fifo_subsampling: FifoSubsampling,
+
+    /// For pressure and temperature, select data source.
+    pub data_select: FifoDataSelect,
+}
+
+impl From<FifoConfig> for [u8; 2] {
+    /// Convert this type to a value that can be written to [`Register::FIFO_CONFIG_1`] and [`Register::FIFO_CONFIG_2`].
+    fn from(config: FifoConfig) -> [u8; 2] {
+        let mut value = [0; 2];
+        value[0] = {
+            let mut value = 0;
+            if config.fifo_mode {
+                value |= 1 << 0;
+            }
+
+            if config.fifo_stop_on_full {
+                value |= 1 << 1;
+            }
+
+            if config.fifo_time_en {
+                value |= 1 << 2;
+            }
+
+            if config.fifo_press_en {
+                value |= 1 << 3;
+            }
+
+            if config.fifo_temp_en {
+                value |= 1 << 4;
+            }
+
+            value
+        };
+
+        value[1] = {
+            let mut value = 0;
+            value |= config.fifo_subsampling as u8;
+            value |= (config.data_select as u8) << 3;
+            value
+        };
+
+        value
+    }
+}
+
+/// FIFO input data rate is reduced by selecting a down-sampling factor in [`FifoConfig::fifo_subsampling`].
+///
+/// # Datasheet
+/// Section 3.6.2. FIFO data sampling selection.
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
+pub enum FifoSubsampling {
+    /// No downsampling.
+    None = 0b000,
+
+    /// 2x downsampling. Equivalent to a value of `1` for the [`FifoConfig::fifo_subsampling`] bits.
+    X2 = 0b001,
+
+    /// 4x downsampling. Equivalent to a value of `2` for the [`FifoConfig::fifo_subsampling`] bits.
+    X4 = 0b010,
+
+    /// 8x downsampling. Equivalent to a value of `3` for the [`FifoConfig::fifo_subsampling`] bits.
+    X8 = 0b011,
+
+    /// 16x downsampling. Equivalent to a value of `4` for the [`FifoConfig::fifo_subsampling`] bits.
+    X16 = 0b100,
+
+    /// 32x downsampling. Equivalent to a value of `5` for the [`FifoConfig::fifo_subsampling`] bits.
+    X32 = 0b101,
+
+    /// 64x downsampling. Equivalent to a value of `6` for the [`FifoConfig::fifo_subsampling`] bits.
+    X64 = 0b110,
+
+    /// 128x downsampling. Equivalent to a value of `7` for the [`FifoConfig::fifo_subsampling`] bits.
+    X128 = 0b111,
+}
+
+
+/// FIFO data can store filtered or unfiltered data.
+///
+/// # Datasheet
+/// Section 3.6.1. FIFO input data.
+#[derive(Debug, Clone, Copy, PartialEq, Format)]
+pub enum FifoDataSelect {
+    /// Unfiltered data (compensated or uncompensated).
+    Unfiltered = 0b00,
+
+    /// Filtered data (compensated or uncompensated).
+    Filtered = 0b01,
+}
