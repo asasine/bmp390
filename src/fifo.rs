@@ -64,12 +64,6 @@ pub enum FifoData {
     /// The FIFO frame contains temperature and pressure data.
     TemperatureAndPressure(u32, u32),
 
-    /// The FIFO frame contains no data.
-    ///
-    /// This occurs when the FIFO frame indicated that it contains sensor data but no specific sensors were enabled in
-    /// that frame.
-    Empty,
-
     /// The FIFO frame contains a configuration error.
     ///
     /// The data bytes for this is always an opcode of `0x01` therefore the opcode is not returned.
@@ -125,8 +119,9 @@ impl<T: core::iter::Iterator<Item = u8>> Iterator for FifoIter<T> {
                 } else if pressure {
                     Some(FifoData::Pressure(self.next_u24()?))
                 } else {
-                    self.iter.next(); // empty sensor frames have a single data byte that we skip
-                    Some(FifoData::Empty)
+                    // an empty sensor frame indicates we've exhausted the FIFO so consume the rest of the buffer
+                    while let Some(_) = self.iter.next() {}
+                    None
                 }
             }
             FifoHeader::ConfigurationError => {
@@ -140,6 +135,8 @@ impl<T: core::iter::Iterator<Item = u8>> Iterator for FifoIter<T> {
         }
     }
 }
+
+impl<T: core::iter::Iterator<Item = u8>> core::iter::FusedIterator for FifoIter<T> {}
 
 #[cfg(test)]
 mod tests {
@@ -206,8 +203,8 @@ mod tests {
         fn empty() {
             let data = [0b10_0000_00, 0];
             let mut iter = FifoIter::new(data.into_iter());
-            assert_eq!(iter.next(), Some(FifoData::Empty));
             assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None, "the iterator should be fused");
         }
 
         #[test]
@@ -289,9 +286,8 @@ mod tests {
 
             let mut iter = FifoIter::new(data.into_iter());
             assert_eq!(iter.next(), Some(FifoData::Temperature(0x00112233)));
-            assert_eq!(iter.next(), Some(FifoData::Empty));
-            assert_eq!(iter.next(), Some(FifoData::Time(0x00778899)));
             assert_eq!(iter.next(), None);
+            assert_eq!(iter.next(), None, "the iterator should be fused");
         }
 
         #[test]
