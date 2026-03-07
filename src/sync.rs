@@ -220,6 +220,47 @@ where
         Ok(temperature)
     }
 
+    /// Reads temperature and pressure from the barometer.
+    /// # Example
+    /// ```no_run
+    /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+    /// # use bmp390::sync::Bmp390;
+    /// use uom::si::pressure::hectopascal;
+    /// # fn run() -> Result<(), bmp390::Error<embedded_hal::i2c::ErrorKind>> {
+    /// # let config = bmp390::Configuration::default();
+    /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+    /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+    /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config)?;
+    /// let pressure = sensor.temperature_pressure()?;
+    /// defmt::info!(
+    ///     "Temperature: {} °C, Pressure: {} hPa", 
+    ///     temperature.get::<degree_celsius>(), 
+    ///     pressure.get::<hectopascal>()
+    /// );
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn temperature_pressure(&mut self) -> Result<(ThermodynamicTemperature, Pressure), Error<E>> {
+        // pressure requires temperature to compensate, so just measure both
+        // pressure requires temperature to compensate, so just measure both
+        let write = &[Register::DATA_0.into()];
+        let mut read = [0; 6];
+        self.i2c
+            .write_read(self.address.into(), write, &mut read)
+            .map_err(Error::I2c)?;
+
+        trace!("DATA = {=[u8]:#04x}", read);
+
+        // pressure is 0:2 (XLSB, LSB, MSB), temperature is 3:5 (XLSB, LSB, MSB)
+        let temperature_raw = u32::from(read[3]) | u32::from(read[4]) << 8 | u32::from(read[5]) << 16;
+        let pressure_raw    = u32::from(read[0]) | u32::from(read[1]) << 8 | u32::from(read[2]) << 16;
+        
+        let temperature = self.coefficients.compensate_temperature(temperature_raw);
+        let pressure = self.coefficients.compensate_pressure(temperature, pressure_raw);
+
+        Ok((temperature, pressure))
+    }
+
     /// Reads the pressure from the barometer as a [`Pressure`].
     ///
     /// # Example
@@ -238,12 +279,15 @@ where
     /// # }
     /// ```
     pub fn pressure(&mut self) -> Result<Pressure, Error<E>> {
-        // pressure requires temperature to compensate, so just measure both
-        let measurement = self.measure()?;
-        Ok(measurement.pressure)
+        // pressure requires temperature to compensate, so we have to measure both
+        self.temperature_pressure().map(|(_, pressure)| pressure)
     }
 
-    /// Measures the pressure and temperature from the barometer.
+    /// Measures the temperature and pressure from the barometer.
+    /// Altitude is then calculated using the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
+    /// 
+    /// This altitude calculation can be expensive on devices without floating point hardware. In this case, consider
+    /// calling [`temperature_pressure()`] instead and using an approximation or lookup table.
     ///
     /// # Example
     /// ```no_run
@@ -260,21 +304,7 @@ where
     /// # }
     /// ```
     pub fn measure(&mut self) -> Result<Measurement, Error<E>> {
-        // Burst read: only address DATA_0 (pressure XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
-        let write = &[Register::DATA_0.into()];
-        let mut read = [0; 6];
-        self.i2c
-            .write_read(self.address.into(), write, &mut read)
-            .map_err(Error::I2c)?;
-
-        trace!("DATA = {=[u8]:#04x}", read);
-
-        // pressure is 0:2 (XLSB, LSB, MSB), temperature is 3:5 (XLSB, LSB, MSB)
-        let temperature = u32::from(read[3]) | u32::from(read[4]) << 8 | u32::from(read[5]) << 16;
-        let temperature = self.coefficients.compensate_temperature(temperature);
-
-        let pressure = u32::from(read[0]) | u32::from(read[1]) << 8 | u32::from(read[2]) << 16;
-        let pressure = self.coefficients.compensate_pressure(temperature, pressure);
+        let (temperature, pressure) = self.temperature_pressure()?;
 
         Ok(Measurement {
             temperature,
