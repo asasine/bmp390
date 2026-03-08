@@ -884,7 +884,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_measure_reads_temperature_and_pressure() {
+    async fn test_reads_temperature_pressure() {
         let addr = Address::Up;
         let expectations = [I2cTransaction::write_read(
             addr.into(),
@@ -895,9 +895,9 @@ mod tests {
         let mut i2c = Mock::new(&expectations);
         let mut bmp390 =
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
-        let measurement = bmp390.measure().await.unwrap();
-        assert_eq!(measurement.temperature, expected_temperature());
-        assert_eq!(measurement.pressure, expected_pressure());
+        let measurement = bmp390.temperature_pressure().await.unwrap();
+        assert_eq!(measurement.0, expected_temperature());
+        assert_eq!(measurement.1, expected_pressure());
         i2c.done();
     }
 
@@ -917,6 +917,25 @@ mod tests {
             Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
         let altitude = bmp390.altitude().await.unwrap();
         assert_eq!(altitude, expected_altitude());
+        i2c.done();
+    }
+
+    #[tokio::test]
+    async fn test_measure_reads_temperature_pressure_altitude() {
+        let addr = Address::Up;
+        let expectations = [I2cTransaction::write_read(
+            addr.into(),
+            vec![Register::DATA_0.into()],
+            PRESSURE_TEMPERATURE_BYTES.to_vec(),
+        )];
+
+        let mut i2c = Mock::new(&expectations);
+        let mut bmp390 =
+            Bmp390::new_with_coefficients(i2c.clone(), addr, CalibrationCoefficients::default());
+        let measurement = bmp390.measure().await.unwrap();
+        assert_eq!(measurement.temperature, expected_temperature());
+        assert_eq!(measurement.pressure, expected_pressure());
+        assert_eq!(measurement.altitude, expected_altitude());
         i2c.done();
     }
 
