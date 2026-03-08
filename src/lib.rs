@@ -601,14 +601,16 @@ where
     /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
     /// let (temperature, pressure) = sensor.temperature_pressure().await?;
     /// defmt::info!(
-    ///     "Temperature: {} °C, Pressure: {} hPa", 
-    ///     temperature.get::<degree_celsius>(), 
+    ///     "Temperature: {} °C, Pressure: {} hPa",
+    ///     temperature.get::<degree_celsius>(),
     ///     pressure.get::<hectopascal>()
     /// );
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn temperature_pressure(&mut self) -> Result<(ThermodynamicTemperature, Pressure), Error<E>> {
+    pub async fn temperature_pressure(
+        &mut self,
+    ) -> Result<(ThermodynamicTemperature, Pressure), Error<E>> {
         // Burst read: only address DATA_0 (pressure XLSB) and BMP390 auto-increments through DATA_5 (temperature MSB)
         let write = &[Register::DATA_0.into()];
         let mut read = [0; 6];
@@ -626,7 +628,7 @@ where
         let pressure = u32::from(read[0]) | u32::from(read[1]) << 8 | u32::from(read[2]) << 16;
         let pressure = self.coefficients.compensate_pressure(temperature, pressure);
 
-        Ok((temperature,pressure))
+        Ok((temperature, pressure))
     }
 
     /// Reads the pressure from the barometer as a [`Pressure`].
@@ -654,7 +656,7 @@ where
 
     /// Measures the temperature and pressure from the barometer.
     /// Altitude is then calculated using the [NOAA formula](https://www.weather.gov/media/epz/wxcalc/pressureAltitude.pdf).
-    /// 
+    ///
     /// This altitude calculation can be expensive on devices without floating point hardware. In this case, consider
     /// calling [`temperature_pressure()`] instead and using an approximation or lookup table.
     ///
