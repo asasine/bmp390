@@ -593,12 +593,13 @@ where
     /// ```no_run
     /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
     /// # use bmp390::Bmp390;
+    /// use uom::si::{pressure::hectopascal, thermodynamic_temperature::degree_celsius};
     /// # async fn run() -> Result<(), bmp390::Error<embedded_hal_async::i2c::ErrorKind>> {
     /// # let config = bmp390::Configuration::default();
     /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
     /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
     /// # let mut sensor = Bmp390::try_new(i2c, bmp390::Address::Up, delay, &config).await?;
-    /// let measurement = sensor.temperature_pressure().await?;
+    /// let (temperature, pressure) = sensor.temperature_pressure().await?;
     /// defmt::info!(
     ///     "Temperature: {} °C, Pressure: {} hPa", 
     ///     temperature.get::<degree_celsius>(), 
