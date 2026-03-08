@@ -35,7 +35,7 @@
 //! By default, the synchronous API is disabled.
 
 #![no_std]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 
 use defmt::{debug, trace, Format};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
