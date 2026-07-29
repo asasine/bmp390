@@ -46,6 +46,7 @@ use uom::si::pressure::{hectopascal, pascal};
 use uom::si::thermodynamic_temperature::degree_celsius;
 
 mod registers;
+pub mod dd;
 
 #[cfg(feature = "sync")]
 pub mod sync;
