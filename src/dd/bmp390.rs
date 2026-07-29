@@ -1,116 +1,226 @@
 use super::Device;
-use core::slice;
-use embedded_hal::i2c::Operation;
+use crate::{CalibrationCoefficients, Measurement};
+use uom::si::{
+    f32::{Length, Pressure, ThermodynamicTemperature},
+    length::meter,
+};
 
-/// The BMP390 barometer's SDO value, which sets the I2C address.*
+/// A driver for the BMP390 pressure sensor over multiple bus implementations.
 ///
-///  The BMP390 can be configured to use two different addresses by either pulling the `SDO` pin down to `GND`
-/// (`0x76` via [`Sdo::Down`]) or up to `V_DDIO` (`0x77` via [`Sdo::Up`]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum Sdo {
-    /// `0x76`: The BMP390's address when `SDO` is pulled up to `GND`.
-    Down = 0x76,
-
-    /// `0x77`: The BMP390's address when `SDO` is pulled down to `V_DDIO`
-    Up = 0x77,
-}
-
-impl From<Sdo> for u8 {
-    /// Convert the address to a [`u8`] for I2C communication.
-    fn from(sdo: Sdo) -> u8 {
-        sdo as u8
-    }
-}
-
-/// The BMP390 device driver.
+/// To use this driver, create a new instance with [`Bmp390::new`]. Then, use [`Bmp390::device`] to get
+/// a [`Device`] instance, which has methods for reading and writing individual registers.
+/// For higher-level functionality, use methods on [`Bmp390`] to retrieve calibrated measurements, retrieve unit-safe
+/// values, and configure the device.
+///
+/// # Multi-bus support
+/// This driver supports multiple bus implementations, including synchronous and asynchronous I2C.
+/// This is achieved through the [`device_driver`] crate, which provides a common interface for reading/writing
+/// registers and sending commands. Any bus implementation provided to [`Bmp390::new`] that implements the
+/// [`device_driver`] interface traits can be used with this driver.
+///
+/// # Safe units
+/// Unit-safe measurements can be retrieved with [`Bmp390::measure`], which returns a [`Measurement`] struct containing
+/// the pressure, temperature, and altitude.
+/// This driver utilizes [`uom`] to provide automatic, type-safe, and zero-cost units of measurement. The altitude is
+/// calculated based on the current pressure, standard atmospheric pressure at sea level,
+/// and a reference altitude, which can be set with [`Bmp390::set_reference_altitude`]. The reference altitude defaults
+/// to zero, so the default altitude is measured from sea level.
+///
+/// # Example
+/// ```no_run
+/// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
+/// use bmp390::dd::{Bmp390, Sdo, I2cInterface};
+/// # async fn run() -> Result<(), embedded_hal_async::i2c::ErrorKind> {
+/// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
+/// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
+/// let interface = I2cInterface {
+///     bus: i2c,
+///     address: Sdo::Up,
+/// };
+///
+/// let mut bmp390 = Bmp390::new(interface);
+///
+/// // read individual registers
+/// let chip_id = bmp390.device().chip_id().read_async().await?;
+/// assert_eq!(chip_id.value(), 0x60);
+///
+/// // read a calibrated measurement
+/// let measurement = bmp390.measure_async().await?;
+/// defmt::info!("Measurement: {}", measurement);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
-pub struct Bmp390<B> {
-    bus: B,
-    address: u8,
-}
+pub struct Bmp390<I> {
+    /// The device's register and command interface.
+    device: Device<I>,
 
-impl<B> Bmp390<B> {
-    /// Create a new [`Bmp390`] with the given bus and address derived from the `SDO` pin.
-    pub fn new(bus: B, sdo: Sdo) -> Self {
-        Self::new_with_address(bus, sdo.into())
-    }
+    /// The calibration coefficients read from the device's non-volatile memory.
+    coefficients: Option<CalibrationCoefficients>,
 
-    /// Create a new [`Bmp390`] with the given bus and address.
-    pub fn new_with_address(bus: B, address: u8) -> Self {
-        Self { bus, address }
-    }
-
-    /// Get a [`Device`] instance, which can be used to read and write registers on the device.
+    /// The reference altitude used for calculating the altitude from the pressure measurement.
     ///
-    /// This instance may be freely used and dropped.
-    pub fn device(&mut self) -> Device<&mut Self> {
-        Device::new(self)
+    /// By default, this is zero, set to the standard atmospheric pressure at sea level, 1013.25 hPa. It can be set to
+    /// a different value using [`Self::set_reference_altitude`] to calculate the altitude relative to a different
+    /// reference point.
+    reference_altitude: Length,
+}
+
+#[cfg(feature = "defmt")]
+impl<I: defmt::Format> defmt::Format for Bmp390<I> {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "Bmp390 {{ interface: {}, coefficients: {}, reference_altitude: {} m }}",
+            self.device.interface,
+            self.coefficients,
+            self.reference_altitude.get::<meter>()
+        );
     }
 }
 
-/// The operations to select a register for reading or writing.
-fn register_op<'a>(register_address: &'a u8) -> Operation<'a> {
-    Operation::Write(slice::from_ref(register_address))
-}
-
-/// The operations to write to a register, including selecting the register and writing the data.
-fn write_ops<'a>(register_address: &'a u8, data: &'a [u8]) -> [Operation<'a>; 2] {
-    [register_op(register_address), Operation::Write(data)]
-}
-
-/// The operations to read from a register, including selecting the register and reading the data.
-fn read_ops<'a>(register_address: &'a u8, data: &'a mut [u8]) -> [Operation<'a>; 2] {
-    [register_op(register_address), Operation::Read(data)]
-}
-
-impl<B: embedded_hal_async::i2c::I2c> device_driver::AsyncRegisterInterface for &mut Bmp390<B> {
-    type Error = B::Error;
-    type AddressType = u8;
-
-    async fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        _size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        let mut operations = write_ops(&address, data);
-        self.bus.transaction(self.address, &mut operations).await
+impl<I> Bmp390<I> {
+    /// Create a new [`Bmp390`] from a device interface.
+    pub fn new(interface: I) -> Self {
+        Self {
+            device: Device::new(interface),
+            coefficients: None,
+            reference_altitude: Length::new::<meter>(0.0),
+        }
     }
 
-    async fn read_register(
-        &mut self,
-        address: Self::AddressType,
-        _size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        let mut operations = read_ops(&address, data);
-        self.bus.transaction(self.address, &mut operations).await
+    /// Get a [`Device`] instance, which can be used to read and write individual registers on the device.
+    pub fn device(&mut self) -> &mut Device<I> {
+        &mut self.device
+    }
+
+    /// Set the reference altitude for altitude calculations.
+    ///
+    /// Following this, the altitude can be calculated using [`Self::altitude`]. If the current pressure matches
+    /// the pressure when the reference altitude is set, the altitude will be 0.
+    pub fn set_reference_altitude(&mut self, altitude: Length) {
+        self.reference_altitude = altitude;
     }
 }
 
-#[cfg(feature = "sync")]
-impl<B: embedded_hal::i2c::I2c> device_driver::RegisterInterface for &mut Bmp390<B> {
-    type Error = B::Error;
-    type AddressType = u8;
+impl<I, E> Bmp390<I>
+where
+    I: device_driver::AsyncRegisterInterface<AddressType = u8, Error = E>,
+{
+    /// Get the calibration coefficients, reading them from the device if they have not been read yet.
+    async fn coefficients_async(&mut self) -> Result<&CalibrationCoefficients, E> {
+        let coefficients = match self.coefficients.take() {
+            Some(coefficients) => coefficients,
+            None => self.device.calibration_data().read_async().await?.into(),
+        };
 
-    fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        _size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        let mut operations = write_ops(&address, data);
-        self.bus.transaction(self.address, &mut operations)
+        Ok(self.coefficients.insert(coefficients))
     }
 
-    fn read_register(
+    /// Get the calibrated temperature.
+    pub async fn temperature_async(&mut self) -> Result<ThermodynamicTemperature, E> {
+        let temperature = self.device.temperature_data().read_async().await?;
+        let coefficients = self.coefficients_async().await?;
+        Ok(coefficients.compensate_temperature(temperature.value()))
+    }
+
+    /// Get the calibrated temperature and pressure.
+    pub async fn temperature_and_pressure_async(
         &mut self,
-        address: Self::AddressType,
-        _size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        let mut operations = read_ops(&address, data);
-        self.bus.transaction(self.address, &mut operations)
+    ) -> Result<(ThermodynamicTemperature, Pressure), E> {
+        let data = self.device.data().read_async().await?;
+        let coefficients = self.coefficients_async().await?;
+        let temperature = coefficients.compensate_temperature(data.temperature());
+        let pressure = coefficients.compensate_pressure(temperature, data.pressure());
+        Ok((temperature, pressure))
+    }
+
+    /// Get the calibrated pressure.
+    ///
+    /// Due to how the calibration works, this function also reads the temperature.
+    pub async fn pressure_async(&mut self) -> Result<Pressure, E> {
+        let (_, pressure) = self.temperature_and_pressure_async().await?;
+        Ok(pressure)
+    }
+
+    /// Get the calibrated temperature, pressure, and altitude.
+    ///
+    /// The altitude is calculated based on the current pressure and the reference altitude.
+    /// To change the altitude, use [`Self::set_reference_altitude`].
+    pub async fn measure_async(&mut self) -> Result<Measurement, E> {
+        let (temperature, pressure) = self.temperature_and_pressure_async().await?;
+        Ok(Measurement {
+            temperature,
+            pressure,
+            altitude: crate::calculate_altitude(pressure, self.reference_altitude),
+        })
+    }
+
+    /// Get the altitude based on the current pressure and the reference altitude.
+    ///
+    /// To change the reference altitude, use [`Self::set_reference_altitude`].
+    pub async fn altitude_async(&mut self) -> Result<Length, E> {
+        let measurement = self.measure_async().await?;
+        Ok(measurement.altitude)
+    }
+}
+
+impl<I, E> Bmp390<I>
+where
+    I: device_driver::RegisterInterface<AddressType = u8, Error = E>,
+{
+    /// Get the calibration coefficients, reading them from the device if they have not been read yet.
+    fn coefficients(&mut self) -> Result<&CalibrationCoefficients, E> {
+        let coefficients = match self.coefficients.take() {
+            Some(coefficients) => coefficients,
+            None => self.device.calibration_data().read()?.into(),
+        };
+
+        Ok(self.coefficients.insert(coefficients))
+    }
+
+    /// Get the calibrated temperature.
+    pub fn temperature(&mut self) -> Result<ThermodynamicTemperature, E> {
+        let temperature = self.device.temperature_data().read()?;
+        let coefficients = self.coefficients()?;
+        Ok(coefficients.compensate_temperature(temperature.value()))
+    }
+
+    /// Get the calibrated temperature and pressure.
+    pub fn temperature_and_pressure(&mut self) -> Result<(ThermodynamicTemperature, Pressure), E> {
+        let data = self.device.data().read()?;
+        let coefficients = self.coefficients()?;
+        let temperature = coefficients.compensate_temperature(data.temperature());
+        let pressure = coefficients.compensate_pressure(temperature, data.pressure());
+        Ok((temperature, pressure))
+    }
+
+    /// Get the calibrated pressure.
+    ///
+    /// Due to how the calibration works, this function also reads the temperature.
+    pub fn pressure(&mut self) -> Result<Pressure, E> {
+        let (_, pressure) = self.temperature_and_pressure()?;
+        Ok(pressure)
+    }
+
+    /// Get the calibrated temperature, pressure, and altitude.
+    ///
+    /// The altitude is calculated based on the current pressure and the reference altitude.
+    /// To change the altitude, use [`Self::set_reference_altitude`].
+    pub fn measure(&mut self) -> Result<Measurement, E> {
+        let (temperature, pressure) = self.temperature_and_pressure()?;
+        Ok(Measurement {
+            temperature,
+            pressure,
+            altitude: crate::calculate_altitude(pressure, self.reference_altitude),
+        })
+    }
+
+    /// Get the altitude based on the current pressure and the reference altitude.
+    ///
+    /// To change the reference altitude, use [`Self::set_reference_altitude`].
+    pub fn altitude(&mut self) -> Result<Length, E> {
+        let measurement = self.measure()?;
+        Ok(measurement.altitude)
     }
 }

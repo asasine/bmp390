@@ -1,4 +1,4 @@
-use bmp390::{sync::Bmp390, Address, Configuration};
+use bmp390::{Address, Configuration, sync::Bmp390};
 use clap::Parser;
 use embedded_hal::delay::DelayNs;
 use linux_embedded_hal::{Delay, I2cdev};

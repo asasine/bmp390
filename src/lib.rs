@@ -37,7 +37,7 @@
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use defmt::{debug, trace, Format};
+use defmt::{Format, debug, trace};
 use embedded_hal_async::{delay::DelayNs, i2c::I2c};
 use libm::powf;
 use uom::si::f32::{Length, Pressure, ThermodynamicTemperature};
@@ -45,8 +45,8 @@ use uom::si::length::{foot, meter};
 use uom::si::pressure::{hectopascal, pascal};
 use uom::si::thermodynamic_temperature::degree_celsius;
 
-mod registers;
 pub mod dd;
+mod registers;
 
 #[cfg(feature = "sync")]
 pub mod sync;
@@ -362,6 +362,43 @@ impl CalibrationCoefficients {
     /// must be combined with a 21-byte read in a combined write-read burst.
     fn write_read_write_transaction() -> [u8; 1] {
         [Register::NVM_PAR_T1_0.into()]
+    }
+}
+
+impl From<dd::field_sets::CalibrationData> for CalibrationCoefficients {
+    fn from(value: dd::field_sets::CalibrationData) -> Self {
+        trace!("NVM_PAR: {}", value);
+        let nvm_par_t1 = value.nvm_par_t_1();
+        let nvm_par_t2 = value.nvm_par_t_2();
+        let nvm_par_t3 = value.nvm_par_t_3();
+        let nvm_par_p1 = value.nvm_par_p_1();
+        let nvm_par_p2 = value.nvm_par_p_2();
+        let nvm_par_p3 = value.nvm_par_p_3();
+        let nvm_par_p4 = value.nvm_par_p_4();
+        let nvm_par_p5 = value.nvm_par_p_5();
+        let nvm_par_p6 = value.nvm_par_p_6();
+        let nvm_par_p7 = value.nvm_par_p_7();
+        let nvm_par_p8 = value.nvm_par_p_8();
+        let nvm_par_p9 = value.nvm_par_p_9();
+        let nvm_par_p10 = value.nvm_par_p_10();
+        let nvm_par_p11 = value.nvm_par_p_11();
+
+        Self {
+            par_t1: (nvm_par_t1 as f32) / 0.003_906_25,    // 2^-8
+            par_t2: (nvm_par_t2 as f32) / 1_073_741_824.0, // 2^30
+            par_t3: (nvm_par_t3 as f32) / 281_474_976_710_656.0, // 2^48
+            par_p1: ((nvm_par_p1 as f32) - 16_384.0) / 1_048_576.0, // 2^14 / 2^20
+            par_p2: ((nvm_par_p2 as f32) - 16_384.0) / 536_870_912.0, // 2^14 / 2^29
+            par_p3: (nvm_par_p3 as f32) / 4_294_967_296.0, // 2^32
+            par_p4: (nvm_par_p4 as f32) / 137_438_953_472.0, // 2^37
+            par_p5: (nvm_par_p5 as f32) / 0.125,           // 2^-3
+            par_p6: (nvm_par_p6 as f32) / 64.0,            // 2^6
+            par_p7: (nvm_par_p7 as f32) / 256.0,           // 2^8
+            par_p8: (nvm_par_p8 as f32) / 32768.0,         // 2^15
+            par_p9: (nvm_par_p9 as f32) / 281_474_976_710_656.0, //2^48
+            par_p10: (nvm_par_p10 as f32) / 281_474_976_710_656.0, // 2^48
+            par_p11: (nvm_par_p11 as f32) / 36_893_488_147_419_103_232.0, // 2^65
+        }
     }
 }
 

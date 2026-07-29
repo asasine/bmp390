@@ -26,8 +26,8 @@
 //! ```
 
 use crate::{
-    calculate_altitude, registers::*, Address, CalibrationCoefficients, Configuration, Error,
-    Measurement,
+    Address, CalibrationCoefficients, Configuration, Error, Measurement, calculate_altitude,
+    registers::*,
 };
 
 use defmt::{debug, trace};
@@ -378,10 +378,10 @@ mod tests {
     use embedded_hal_mock::eh1::i2c::{Mock, Transaction as I2cTransaction};
     use std::prelude::rust_2021::*;
     use std::vec;
+    use uom::ConstZero;
     use uom::si::length::meter;
     use uom::si::pressure::pascal;
     use uom::si::thermodynamic_temperature::degree_celsius;
-    use uom::ConstZero;
 
     use crate::{ErrReg, Event, IntStatus};
 
