@@ -1,4 +1,3 @@
-
 /// The BMP390 barometer's SDO value, which sets the I2C address.
 ///
 /// The BMP390 can be configured to use two different addresses by either pulling the `SDO` pin down to `GND`

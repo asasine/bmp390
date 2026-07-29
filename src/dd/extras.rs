@@ -1,5 +1,107 @@
 //! Contains extra functionality on top of the generated [`device_driver`] code.
 
+mod defaults {
+    //! Default values for register fields based on the default value of the registers they belong to.
+
+    use crate::dd::{
+        FifoDataSelect, FifoMode, I2CWatchdogPeriod, IirFilterCoefficient, IntLevel, IntOpenDrain,
+        MeasurementMode, OdrSel, Oversampling,
+    };
+
+    impl FifoMode {
+        pub const DEFAULT: Self = Self::Disabled;
+    }
+
+    impl Default for FifoMode {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl FifoDataSelect {
+        pub const DEFAULT: Self = Self::Unfiltered;
+    }
+
+    impl Default for FifoDataSelect {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl IntOpenDrain {
+        /// The default interrupt pin configuration.
+        pub const DEFAULT: Self = Self::PushPull;
+    }
+
+    impl Default for IntOpenDrain {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl IntLevel {
+        /// The default interrupt pin configuration.
+        pub const DEFAULT: Self = Self::ActiveLow;
+    }
+
+    impl Default for IntLevel {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl I2CWatchdogPeriod {
+        pub const DEFAULT: Self = Self::Short;
+    }
+
+    impl Default for I2CWatchdogPeriod {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl MeasurementMode {
+        /// The default measurment mode.
+        pub const DEFAULT: Self = Self::Sleep;
+    }
+
+    impl Default for MeasurementMode {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl Oversampling {
+        /// The default oversampling rate for pressure measurements.
+        pub const DEFAULT_PRESSURE: Self = Self::X4;
+
+        /// The default oversampling rate for temperature measurements.
+        pub const DEFAULT_TEMPERATURE: Self = Self::X1;
+    }
+
+    impl OdrSel {
+        /// The default output data rate.
+        pub const DEFAULT: Self = Self::Odr200;
+    }
+
+    impl Default for OdrSel {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+
+    impl IirFilterCoefficient {
+        /// The default IIR filter coefficient.
+        pub const DEFAULT: Self = Self::Coef0;
+    }
+
+    impl Default for IirFilterCoefficient {
+        fn default() -> Self {
+            Self::DEFAULT
+        }
+    }
+}
+
 #[cfg(feature = "embassy-time")]
 mod odr_sel_into_duration {
     use crate::dd::OdrSel;
