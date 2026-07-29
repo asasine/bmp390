@@ -45,6 +45,7 @@
 //! Asynchronous methods are typically suffixed in `_async`.
 
 mod bmp390;
+mod extras;
 mod generated;
 pub mod interfaces;
 
