@@ -1,5 +1,10 @@
 use super::Device;
-use crate::{CalibrationCoefficients, Measurement};
+use crate::{
+    CalibrationCoefficients, Measurement,
+    dd::field_sets::{Config, FifoConfig, FifoWatermark, IfConf, IntCtrl, Odr, Osr, PwrCtrl},
+};
+use device_driver::{AsyncRegisterInterface, RegisterInterface};
+use thiserror::Error;
 use uom::si::{
     f32::{Length, Pressure, ThermodynamicTemperature},
     length::meter,
@@ -103,9 +108,119 @@ impl<I> Bmp390<I> {
     }
 }
 
+/// A builder for configuring the BMP390 device.
+///
+/// By default, no registers are configured. Registers can be configured by calling
+/// the corresponding methods on the builder. Once all desired registers are configured,
+/// call [`Bmp390::configure`] to apply the configuration to the device.
+pub struct ConfigurationBuilder {
+    // registers
+    fifo_watermark: Option<FifoWatermark>,
+    fifo_config: Option<FifoConfig>,
+    int_ctrl: Option<IntCtrl>,
+    if_conf: Option<IfConf>,
+    pwr_ctrl: Option<PwrCtrl>,
+    osr: Option<Osr>,
+    odr: Option<Odr>,
+    config: Option<Config>,
+
+    // Bmp390
+    reference_altitude: Option<Length>,
+}
+
+impl ConfigurationBuilder {
+    /// Create a new [`ConfigurationBuilder`] with no registers configured.
+    pub const fn new() -> Self {
+        Self {
+            fifo_watermark: None,
+            fifo_config: None,
+            int_ctrl: None,
+            if_conf: None,
+            pwr_ctrl: None,
+            osr: None,
+            odr: None,
+            config: None,
+            reference_altitude: None,
+        }
+    }
+
+    /// Set the FIFO watermark level.
+    pub const fn fifo_watermark(mut self, fifo_watermark: FifoWatermark) -> Self {
+        self.fifo_watermark = Some(fifo_watermark);
+        self
+    }
+
+    /// Set the FIFO configuration.
+    pub const fn fifo_config(mut self, fifo_config: FifoConfig) -> Self {
+        self.fifo_config = Some(fifo_config);
+        self
+    }
+
+    /// Set the interrupt control configuration.
+    pub const fn int_ctrl(mut self, int_ctrl: IntCtrl) -> Self {
+        self.int_ctrl = Some(int_ctrl);
+        self
+    }
+
+    /// Set the serial interface settings.
+    pub const fn if_conf(mut self, if_conf: IfConf) -> Self {
+        self.if_conf = Some(if_conf);
+        self
+    }
+
+    /// Set the power control configuration.
+    pub const fn pwr_ctrl(mut self, pwr_ctrl: PwrCtrl) -> Self {
+        self.pwr_ctrl = Some(pwr_ctrl);
+        self
+    }
+
+    /// Set the oversampling settings.
+    pub const fn osr(mut self, osr: Osr) -> Self {
+        self.osr = Some(osr);
+        self
+    }
+
+    /// Set the output data rate.
+    pub const fn odr(mut self, odr: Odr) -> Self {
+        self.odr = Some(odr);
+        self
+    }
+
+    /// Set the IIR filter coefficients.
+    pub const fn config(mut self, config: Config) -> Self {
+        self.config = Some(config);
+        self
+    }
+
+    /// Set the reference altitude for altitude calculations.
+    ///
+    /// This isn't a register itself, but is useful for updating the [`Bmp390`]
+    /// during configuration.
+    pub const fn reference_altitude(mut self, reference_altitude: Length) -> Self {
+        self.reference_altitude = Some(reference_altitude);
+        self
+    }
+}
+
+impl Default for ConfigurationBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Error)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum ConfigureError<E> {
+    #[error(transparent)]
+    Interface(#[from] E),
+
+    #[error("The configuration was invalid.")]
+    InvalidConfiguration,
+}
+
 impl<I, E> Bmp390<I>
 where
-    I: device_driver::AsyncRegisterInterface<AddressType = u8, Error = E>,
+    I: AsyncRegisterInterface<AddressType = u8, Error = E>,
 {
     /// Get the calibration coefficients, reading them from the device if they have not been read yet.
     async fn coefficients_async(&mut self) -> Result<&CalibrationCoefficients, E> {
@@ -115,6 +230,81 @@ where
         };
 
         Ok(self.coefficients.insert(coefficients))
+    }
+
+    /// Configure the device with the given [`ConfigurationBuilder`].
+    ///
+    /// For each register that is set in the builder, the corresponding register
+    /// will be written to the device.
+    pub async fn configure_async(
+        &mut self,
+        builder: ConfigurationBuilder,
+    ) -> Result<(), ConfigureError<E>> {
+        let mut any = false;
+        if let Some(fifo_watermark) = builder.fifo_watermark {
+            self.device
+                .fifo_watermark()
+                .write_async(|w| *w = fifo_watermark)
+                .await?;
+            any = true;
+        }
+
+        if let Some(fifo_config) = builder.fifo_config {
+            self.device
+                .fifo_config()
+                .write_async(|w| *w = fifo_config)
+                .await?;
+            any = true;
+        }
+
+        if let Some(int_ctrl) = builder.int_ctrl {
+            self.device
+                .int_ctrl()
+                .write_async(|w| *w = int_ctrl)
+                .await?;
+            any = true;
+        }
+
+        if let Some(if_conf) = builder.if_conf {
+            self.device.if_conf().write_async(|w| *w = if_conf).await?;
+            any = true;
+        }
+
+        if let Some(pwr_ctrl) = builder.pwr_ctrl {
+            self.device
+                .pwr_ctrl()
+                .write_async(|w| *w = pwr_ctrl)
+                .await?;
+            any = true;
+        }
+
+        if let Some(osr) = builder.osr {
+            self.device.osr().write_async(|w| *w = osr).await?;
+            any = true;
+        }
+
+        if let Some(odr) = builder.odr {
+            self.device.odr().write_async(|w| *w = odr).await?;
+            any = true;
+        }
+
+        if let Some(config) = builder.config {
+            self.device.config().write_async(|w| *w = config).await?;
+            any = true;
+        }
+
+        if any {
+            let err_reg = self.device.err_reg().read_async().await?;
+            if err_reg.conf_err() {
+                return Err(ConfigureError::InvalidConfiguration);
+            }
+        }
+
+        if let Some(reference_altitude) = builder.reference_altitude {
+            self.set_reference_altitude(reference_altitude);
+        }
+
+        Ok(())
     }
 
     /// Get the calibrated temperature.
@@ -167,7 +357,7 @@ where
 
 impl<I, E> Bmp390<I>
 where
-    I: device_driver::RegisterInterface<AddressType = u8, Error = E>,
+    I: RegisterInterface<AddressType = u8, Error = E>,
 {
     /// Get the calibration coefficients, reading them from the device if they have not been read yet.
     fn coefficients(&mut self) -> Result<&CalibrationCoefficients, E> {
@@ -177,6 +367,68 @@ where
         };
 
         Ok(self.coefficients.insert(coefficients))
+    }
+
+    /// Configure the device with the given [`ConfigurationBuilder`].
+    ///
+    /// For each register that is set in the builder, the corresponding register
+    /// will be written to the device.
+    pub fn configure(&mut self, builder: ConfigurationBuilder) -> Result<(), ConfigureError<E>> {
+        let mut any = false;
+        if let Some(fifo_watermark) = builder.fifo_watermark {
+            self.device
+                .fifo_watermark()
+                .write(|w| *w = fifo_watermark)?;
+            any = true;
+        }
+
+        if let Some(fifo_config) = builder.fifo_config {
+            self.device.fifo_config().write(|w| *w = fifo_config)?;
+            any = true;
+        }
+
+        if let Some(int_ctrl) = builder.int_ctrl {
+            self.device.int_ctrl().write(|w| *w = int_ctrl)?;
+            any = true;
+        }
+
+        if let Some(if_conf) = builder.if_conf {
+            self.device.if_conf().write(|w| *w = if_conf)?;
+            any = true;
+        }
+
+        if let Some(pwr_ctrl) = builder.pwr_ctrl {
+            self.device.pwr_ctrl().write(|w| *w = pwr_ctrl)?;
+            any = true;
+        }
+
+        if let Some(osr) = builder.osr {
+            self.device.osr().write(|w| *w = osr)?;
+            any = true;
+        }
+
+        if let Some(odr) = builder.odr {
+            self.device.odr().write(|w| *w = odr)?;
+            any = true;
+        }
+
+        if let Some(config) = builder.config {
+            self.device.config().write(|w| *w = config)?;
+            any = true;
+        }
+
+        if any {
+            let err_reg = self.device.err_reg().read()?;
+            if err_reg.conf_err() {
+                return Err(ConfigureError::InvalidConfiguration);
+            }
+        }
+
+        if let Some(reference_altitude) = builder.reference_altitude {
+            self.set_reference_altitude(reference_altitude);
+        }
+
+        Ok(())
     }
 
     /// Get the calibrated temperature.
