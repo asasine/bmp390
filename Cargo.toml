@@ -32,6 +32,7 @@ uom = { version = "0.36.0", default-features = false, features = [
     "si",
     "autoconvert",
 ] }
+thiserror = { version = "2.0.19", default-features = false }
 
 [dev-dependencies]
 clap = { version = "4.5.26", features = ["derive"] }

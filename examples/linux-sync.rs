@@ -1,4 +1,10 @@
-use bmp390::{Address, Configuration, sync::Bmp390};
+use bmp390::{
+    Configuration,
+    dd::{
+        Bmp390, Command,
+        interfaces::{I2cInterface, Polling, Sdo},
+    },
+};
 use clap::Parser;
 use embedded_hal::delay::DelayNs;
 use linux_embedded_hal::{Delay, I2cdev};
@@ -45,11 +51,33 @@ fn main() {
         .expect("Failed to create I2C device");
 
     let config = Configuration::default();
-    let mut sensor = Bmp390::try_new(i2c, Address::Up, Delay, &config)
-        .expect("Failed to initialize BMP390 sensor");
+    let i2c = Polling {
+        interface: I2cInterface {
+            bus: i2c,
+            address: Sdo::Up,
+        },
+        delay: Delay,
+    };
+
+    let mut sensor = Bmp390::new(i2c);
 
     let mut delay = Delay;
     let delay_ms = args.delay_ms();
+
+    let chip_id = sensor
+        .device()
+        .chip_id()
+        .read()
+        .expect("Failed to read chip ID");
+
+    eprintln!("Chip ID: {:#04X}", chip_id.value());
+
+    let result = sensor
+        .device()
+        .cmd()
+        .dispatch(|cmd| cmd.set_cmd(Command::SoftReset));
+
+    eprintln!("Soft reset: {:?}", result);
 
     if args.forever {
         eprintln!("Measuring forever...");

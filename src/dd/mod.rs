@@ -46,8 +46,7 @@
 
 mod bmp390;
 mod generated;
-pub mod i2c;
+pub mod interfaces;
 
 pub use bmp390::Bmp390;
 pub use generated::*;
-pub use i2c::{I2cInterface, Sdo};

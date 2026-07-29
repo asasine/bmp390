@@ -1,45 +1,15 @@
-use embedded_hal::i2c::Operation;
-
-/// The BMP390 barometer's SDO value, which sets the I2C address.
-///
-/// The BMP390 can be configured to use two different addresses by either pulling the `SDO` pin down to `GND`
-/// (`0x76` via [`Sdo::Down`]) or up to `V_DDIO` (`0x77` via [`Sdo::Up`]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Sdo {
-    /// `0x76`: The BMP390's address when `SDO` is pulled up to `GND`.
-    Down,
-
-    /// `0x77`: The BMP390's address when `SDO` is pulled down to `V_DDIO`
-    Up,
-}
-
-impl From<Sdo> for u8 {
-    /// Convert the address to a [`u8`] for I2C communication.
-    fn from(sdo: Sdo) -> u8 {
-        match sdo {
-            Sdo::Down => 0x76,
-            Sdo::Up => 0x77,
-        }
-    }
-}
-
-#[cfg(feature = "defmt")]
-impl defmt::Format for Sdo {
-    fn format(&self, fmt: defmt::Formatter) {
-        match self {
-            Sdo::Down => defmt::write!(fmt, "Sdo::Down"),
-            Sdo::Up => defmt::write!(fmt, "Sdo::Up"),
-        }
-
-        let address = u8::from(*self);
-        defmt::write!(fmt, " (address: {=u8:#04X})", address);
-    }
-}
+use super::Sdo;
+use device_driver::{AsyncRegisterInterface, RegisterInterface};
+use embedded_hal::i2c::{I2c, Operation};
+use embedded_hal_async::i2c::I2c as AsyncI2c;
 
 /// An I2C interface for the BMP390.
 ///
 /// This type implements the [`device_driver`] interface traits for reading and writing
 /// registers over I2C. The device's I2C address is determined by the [`Sdo`] pin.
+///
+/// To invoke commands, wrap this in a [`PollingI2cInterface`] and provide a delay
+/// provider to poll the device for command completion.
 ///
 /// # Example
 /// Create a [`I2cInterface`] directly from the bus and address before passing it
@@ -97,7 +67,7 @@ fn read_ops<'a>(register_address: &'a u8, data: &'a mut [u8]) -> [Operation<'a>;
     [register_op(register_address), Operation::Read(data)]
 }
 
-impl<B: embedded_hal_async::i2c::I2c> device_driver::AsyncRegisterInterface for I2cInterface<B> {
+impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
     type Error = B::Error;
     type AddressType = u8;
 
@@ -126,7 +96,31 @@ impl<B: embedded_hal_async::i2c::I2c> device_driver::AsyncRegisterInterface for 
     }
 }
 
-impl<B: embedded_hal::i2c::I2c> device_driver::RegisterInterface for I2cInterface<B> {
+/// Implement the register interface for any mutable reference to an [`I2cInterface`].
+impl<B: AsyncI2c> AsyncRegisterInterface for &mut I2cInterface<B> {
+    type Error = B::Error;
+    type AddressType = u8;
+
+    async fn write_register(
+        &mut self,
+        address: Self::AddressType,
+        size_bits: u32,
+        data: &[u8],
+    ) -> Result<(), Self::Error> {
+        (*self).write_register(address, size_bits, data).await
+    }
+
+    async fn read_register(
+        &mut self,
+        address: Self::AddressType,
+        size_bits: u32,
+        data: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        (*self).read_register(address, size_bits, data).await
+    }
+}
+
+impl<B: I2c> RegisterInterface for I2cInterface<B> {
     type Error = B::Error;
     type AddressType = u8;
 
@@ -148,5 +142,29 @@ impl<B: embedded_hal::i2c::I2c> device_driver::RegisterInterface for I2cInterfac
     ) -> Result<(), Self::Error> {
         let mut operations = read_ops(&address, data);
         self.bus.transaction(self.address.into(), &mut operations)
+    }
+}
+
+/// Implement the register interface for any mutable reference to an [`I2cInterface`].
+impl<B: I2c> RegisterInterface for &mut I2cInterface<B> {
+    type Error = B::Error;
+    type AddressType = u8;
+
+    fn write_register(
+        &mut self,
+        address: Self::AddressType,
+        size_bits: u32,
+        data: &[u8],
+    ) -> Result<(), Self::Error> {
+        (*self).write_register(address, size_bits, data)
+    }
+
+    fn read_register(
+        &mut self,
+        address: Self::AddressType,
+        size_bits: u32,
+        data: &mut [u8],
+    ) -> Result<(), Self::Error> {
+        (*self).read_register(address, size_bits, data)
     }
 }
