@@ -589,6 +589,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 1] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// The chip identification code.
+        pub fn value(&self) -> u8 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 8)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// The chip identification code.
+        pub fn set_value(&mut self, value: u8) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 8, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 1]> for ChipId {
         fn from(bits: [u8; 1]) -> Self {
@@ -603,6 +627,7 @@ pub mod field_sets {
     impl core::fmt::Debug for ChipId {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("ChipId");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -610,6 +635,7 @@ pub mod field_sets {
     impl defmt::Format for ChipId {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "ChipId {{ ");
+            defmt::write!(f, "value: {=u8}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }
@@ -691,6 +717,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 1] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// The mask revision of the ASIC.
+        pub fn value(&self) -> u8 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 8)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// The mask revision of the ASIC.
+        pub fn set_value(&mut self, value: u8) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 8, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 1]> for RevId {
         fn from(bits: [u8; 1]) -> Self {
@@ -705,6 +755,7 @@ pub mod field_sets {
     impl core::fmt::Debug for RevId {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("RevId");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -712,6 +763,7 @@ pub mod field_sets {
     impl defmt::Format for RevId {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "RevId {{ ");
+            defmt::write!(f, "value: {=u8}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }
@@ -1157,6 +1209,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 3] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// 24-bit pressure data.
+        pub fn value(&self) -> u32 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 24)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// 24-bit pressure data.
+        pub fn set_value(&mut self, value: u32) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 24, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 3]> for PressureData {
         fn from(bits: [u8; 3]) -> Self {
@@ -1171,6 +1247,7 @@ pub mod field_sets {
     impl core::fmt::Debug for PressureData {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("PressureData");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -1178,6 +1255,7 @@ pub mod field_sets {
     impl defmt::Format for PressureData {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "PressureData {{ ");
+            defmt::write!(f, "value: {=u32}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }
@@ -1259,6 +1337,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 3] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// 24-bit temperature data.
+        pub fn value(&self) -> u32 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 24)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// 24-bit temperature data.
+        pub fn set_value(&mut self, value: u32) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 24, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 3]> for TemperatureData {
         fn from(bits: [u8; 3]) -> Self {
@@ -1273,6 +1375,7 @@ pub mod field_sets {
     impl core::fmt::Debug for TemperatureData {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("TemperatureData");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -1280,6 +1383,7 @@ pub mod field_sets {
     impl defmt::Format for TemperatureData {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "TemperatureData {{ ");
+            defmt::write!(f, "value: {=u32}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }
@@ -1361,6 +1465,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 3] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// 24-bit sensor time data.
+        pub fn value(&self) -> u32 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 24)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// 24-bit sensor time data.
+        pub fn set_value(&mut self, value: u32) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 24, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 3]> for SensorTime {
         fn from(bits: [u8; 3]) -> Self {
@@ -1375,6 +1503,7 @@ pub mod field_sets {
     impl core::fmt::Debug for SensorTime {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("SensorTime");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -1382,6 +1511,7 @@ pub mod field_sets {
     impl defmt::Format for SensorTime {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "SensorTime {{ ");
+            defmt::write!(f, "value: {=u32}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }
@@ -1955,6 +2085,30 @@ pub mod field_sets {
         pub const fn new_zero() -> Self {
             Self { bits: [0; 2] }
         }
+        ///Read the `value` field of the register.
+        ///
+        /// The current fill level of the FIFO buffer.
+        pub fn value(&self) -> u16 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u16,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 9)
+            };
+            raw
+        }
+        ///Write the `value` field of the register.
+        ///
+        /// The current fill level of the FIFO buffer.
+        pub fn set_value(&mut self, value: u16) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u16,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 9, &mut self.bits)
+            };
+        }
     }
     impl From<[u8; 2]> for FifoLength {
         fn from(bits: [u8; 2]) -> Self {
@@ -1969,6 +2123,7 @@ pub mod field_sets {
     impl core::fmt::Debug for FifoLength {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
             let mut d = f.debug_struct("FifoLength");
+            d.field("value", &self.value());
             d.finish()
         }
     }
@@ -1976,6 +2131,7 @@ pub mod field_sets {
     impl defmt::Format for FifoLength {
         fn format(&self, f: defmt::Formatter) {
             defmt::write!(f, "FifoLength {{ ");
+            defmt::write!(f, "value: {=u16}, ", & self.value());
             defmt::write!(f, "}}");
         }
     }

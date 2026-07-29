@@ -11,6 +11,12 @@ ChipId:
     size_bits: 8
     description: "The Chip ID register contains the chip identification code."
     reset_value: 0x60
+    fields:
+        value:
+            description: "The chip identification code."
+            base: uint
+            start: 0
+            end: 8
 
 RevId:
     type: register
@@ -18,6 +24,12 @@ RevId:
     size_bits: 8
     description: "The Revision ID register contains the mask revision of the ASIC."
     reset_value: 0x01
+    fields:
+        value:
+            description: "The mask revision of the ASIC."
+            base: uint
+            start: 0
+            end: 8
 
 ErrReg:
     type: register
@@ -75,6 +87,12 @@ PressureData:
     size_bits: 24
     description: "24-bit pressure data, split and stored in three consecutive registers."
     reset_value: 0x800000
+    fields:
+        value:
+            description: "24-bit pressure data."
+            base: uint
+            start: 0
+            end: 24
 
 TemperatureData:
     type: register
@@ -82,12 +100,24 @@ TemperatureData:
     size_bits: 24
     description: "24-bit temperature data, split and stored in three consecutive registers."
     reset_value: 0x800000
+    fields:
+        value:
+            description: "24-bit temperature data."
+            base: uint
+            start: 0
+            end: 24
 
 SensorTime:
     type: register
     address: 0x0C
     size_bits: 24
     description: "24-bit sensor time data, split and stored in three consecutive registers."
+    fields:
+        value:
+            description: "24-bit sensor time data."
+            base: uint
+            start: 0
+            end: 24
 
 Data:
     type: register
@@ -148,6 +178,12 @@ FifoLength:
     address: 0x12
     size_bits: 9
     description: "Indicates the current fill level of the FIFO buffer."
+    fields:
+        value:
+            description: "The current fill level of the FIFO buffer."
+            base: uint
+            start: 0
+            end: 9
 
 FifoData:
     type: register
