@@ -147,3 +147,22 @@ pub fn calculate_altitude(pressure: Pressure, altitude_reference: Length) -> Len
 
     above_sea_level - altitude_reference
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sea_level_pressure_yields_zero_altitude() {
+        let sea_level = Pressure::new::<hectopascal>(1013.25);
+        let altitude = calculate_altitude(sea_level, Length::new::<meter>(0.0));
+        assert_eq!(altitude.get::<meter>(), 0.0);
+    }
+
+    #[test]
+    fn reference_altitude_is_subtracted() {
+        let sea_level = Pressure::new::<hectopascal>(1013.25);
+        let altitude = calculate_altitude(sea_level, Length::new::<meter>(100.0));
+        assert_eq!(altitude.get::<meter>(), -100.0);
+    }
+}

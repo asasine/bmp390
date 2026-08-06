@@ -10,11 +10,12 @@
 //!
 //! # Example
 //! ```no_run
-//! # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-//! use bmp390::{Bmp390, Sdo, I2cInterface};
+//! use bmp390::{
+//!     Bmp390,
+//!     interfaces::{I2cInterface, Sdo},
+//! };
 //! # async fn run() -> Result<(), embedded_hal_async::i2c::ErrorKind> {
 //! # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
-//! # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 //! let interface = I2cInterface {
 //!     bus: i2c,
 //!     address: Sdo::Up,

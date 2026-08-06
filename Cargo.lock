@@ -106,6 +106,7 @@ dependencies = [
  "clap",
  "defmt",
  "device-driver",
+ "device-driver-mock",
  "embassy-time",
  "embedded-hal 1.0.0",
  "embedded-hal-async",
@@ -249,6 +250,16 @@ checksum = "c2e4547bd66511372d2a38ac3c1b2892c7ebf83cf0d5411c3406e496c85a1d96"
 dependencies = [
  "embedded-io",
  "embedded-io-async",
+]
+
+[[package]]
+name = "device-driver-mock"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "277a26c10d3b45c52d8d8506eb3312931f5f029d9d354c0e18fc1ddc0ed66f43"
+dependencies = [
+ "device-driver",
+ "thiserror 2.0.19",
 ]
 
 [[package]]

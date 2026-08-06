@@ -8,18 +8,19 @@ use embedded_hal_async::i2c::I2c as AsyncI2c;
 /// This type implements the [`device_driver`] interface traits for reading and writing
 /// registers over I2C. The device's I2C address is determined by the [`Sdo`] pin.
 ///
-/// To invoke commands, wrap this in a [`PollingI2cInterface`] and provide a delay
+/// To invoke commands, wrap this in a [`Polling`](crate::interfaces::Polling) and provide a delay
 /// provider to poll the device for command completion.
 ///
 /// # Example
 /// Create a [`I2cInterface`] directly from the bus and address before passing it
 /// to [`Bmp390::new`].
 /// ```no_run
-/// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-/// use bmp390::{Bmp390, Sdo, I2cInterface};
+/// use bmp390::{
+///     Bmp390,
+///     interfaces::{I2cInterface, Sdo},
+/// };
 /// # async fn run() -> Result<(), embedded_hal_async::i2c::ErrorKind> {
 /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
-/// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();
 /// let interface = I2cInterface {
 ///     bus: i2c,
 ///     address: Sdo::Up,

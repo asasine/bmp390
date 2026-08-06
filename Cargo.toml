@@ -37,6 +37,7 @@ thiserror = { version = "2.0.19", default-features = false }
 [dev-dependencies]
 clap = { version = "4.5.26", features = ["derive"] }
 defmt = { version = "0.3.8", features = ["unstable-test"] }
+device-driver-mock = "0.1.1"
 embedded-hal-mock = { version = "0.11.0", default-features = false, features = [
     "eh1",
     "embedded-hal-async",
