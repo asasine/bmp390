@@ -1,4 +1,4 @@
-use crate::dd::{CommandStatus, Device};
+use crate::{CommandStatus, Device};
 use device_driver::{
     AsyncCommandInterface, AsyncRegisterInterface, CommandInterface, RegisterInterface,
 };
@@ -13,8 +13,8 @@ use thiserror::Error;
 /// register until the command is complete, then checking the [`ERR_REG`] register
 /// for any errors.
 ///
-/// [`STATUS`]: crate::dd::field_sets::Status
-/// [`ERR_REG`]: crate::dd::field_sets::ErrReg
+/// [`STATUS`]: crate::field_sets::Status
+/// [`ERR_REG`]: crate::field_sets::ErrReg
 pub struct Polling<I, D> {
     /// The underlying register interface implementation.
     pub interface: I,

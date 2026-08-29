@@ -16,7 +16,7 @@ use embedded_hal_async::i2c::I2c as AsyncI2c;
 /// to [`Bmp390::new`].
 /// ```no_run
 /// # use embedded_hal_mock::eh1::{delay::NoopDelay, i2c::Mock};
-/// use bmp390::dd::{Bmp390, Sdo, I2cInterface};
+/// use bmp390::{Bmp390, Sdo, I2cInterface};
 /// # async fn run() -> Result<(), embedded_hal_async::i2c::ErrorKind> {
 /// # let i2c = embedded_hal_mock::eh1::i2c::Mock::new(&[]);
 /// # let delay = embedded_hal_mock::eh1::delay::NoopDelay::new();

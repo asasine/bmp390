@@ -1,4 +1,4 @@
-use bmp390::dd::{
+use bmp390::{
     Bmp390, Command, ConfigurationBuilder, IirFilterCoefficient, MeasurementMode, OdrSel,
     Oversampling,
     field_sets::{Config, Odr, Osr, PwrCtrl},

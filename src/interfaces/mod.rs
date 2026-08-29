@@ -5,7 +5,7 @@
 //! - Commands: [`Polling`] wraps any interface and invokes commands by polling
 //!   the device for command completion.
 //!
-//! [`Bmp390`]: crate::dd::Bmp390
+//! [`Bmp390`]: crate::Bmp390
 
 mod i2c;
 mod polling;
