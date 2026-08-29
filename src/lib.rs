@@ -54,6 +54,7 @@ mod extras;
 mod generated;
 pub mod interfaces;
 mod measurement;
+pub mod registers;
 
 pub use bmp390::{Bmp390, ConfigurationBuilder};
 pub use generated::*;
