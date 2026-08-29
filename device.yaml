@@ -384,7 +384,7 @@ PwrCtrl:
                     description: "Forced mode. One measurement is performed, then the device returns to sleep mode."
                     value: 1
                 Forced2:
-                    description: "Forced mode. Two measurements are performed, then the device returns to sleep mode."
+                    description: "Forced mode. Equivalent to Forced (`0b01`)."
                     value: 2
                 Normal:
                     description: "Normal mode. Continuous measurements are performed at the selected sampling rate."

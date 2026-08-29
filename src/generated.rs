@@ -4756,7 +4756,7 @@ pub enum MeasurementMode {
     Sleep = 0,
     /// Forced mode. One measurement is performed, then the device returns to sleep mode.
     Forced = 1,
-    /// Forced mode. Two measurements are performed, then the device returns to sleep mode.
+    /// Forced mode. Equivalent to Forced (`0b01`).
     Forced2 = 2,
     /// Normal mode. Continuous measurements are performed at the selected sampling rate.
     Normal = 3,
