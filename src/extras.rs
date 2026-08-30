@@ -3,7 +3,7 @@
 mod defaults {
     //! Default values for register fields based on the default value of the registers they belong to.
 
-    use crate::{
+    use crate::raw::{
         FifoDataSelect, FifoMode, I2CWatchdogPeriod, IirFilterCoefficient, IntLevel, IntOpenDrain,
         MeasurementMode, OdrSel, Oversampling,
     };
@@ -104,7 +104,7 @@ mod defaults {
 
 #[cfg(feature = "embassy-time")]
 mod odr_sel_into_duration {
-    use crate::OdrSel;
+    use crate::raw::OdrSel;
     use embassy_time::Duration;
 
     impl OdrSel {

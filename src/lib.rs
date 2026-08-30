@@ -57,5 +57,14 @@ mod measurement;
 pub mod registers;
 
 pub use bmp390::{Bmp390, ConfigurationBuilder};
-pub use generated::*;
 pub use measurement::Measurement;
+
+pub mod raw {
+    //! Low-level register interface, provided by [`device_driver`].
+    //!
+    //! Most applications should use [`crate::Bmp390`] and the ergonomic high-level API it provides.
+    //! These types are provided for when low-level manipulation of the sensor registers is
+    //! necessary, or for when ergonomic deserialization fails for some reason (e.g., reserved
+    //! values).
+    pub use crate::generated::*;
+}

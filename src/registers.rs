@@ -6,12 +6,8 @@
 //! ergonomic value to a generated field set initializes all bits not represented
 //! by the ergonomic type to zero.
 
+use crate::raw::{self, field_sets};
 use thiserror::Error;
-use crate::{
-    Command as RawCommand, CommandStatus, IirFilterCoefficient as RawFilterCoefficient,
-    IntLevel as RawInterruptLevel, IntOpenDrain, MeasurementMode, OdrSel as RawOutputDataRate,
-    Oversampling as RawOversampling, field_sets,
-};
 
 /// An error caused by a reserved register value that has no ergonomic variant.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
@@ -21,7 +17,7 @@ pub struct ReservedValueError {
     /// The field containing the reserved value.
     pub field: &'static str,
 
-    /// The reserved numeric value.
+    /// The reserved value.
     pub value: u8,
 }
 
@@ -82,7 +78,7 @@ pub struct Status {
 impl From<field_sets::Status> for Status {
     fn from(value: field_sets::Status) -> Self {
         Self {
-            command_ready: value.command_ready() == CommandStatus::Ready,
+            command_ready: value.command_ready() == raw::CommandStatus::Ready,
             pressure_ready: value.data_ready_pressure(),
             temperature_ready: value.data_ready_temperature(),
         }
@@ -93,9 +89,9 @@ impl From<Status> for field_sets::Status {
     fn from(value: Status) -> Self {
         let mut register = Self::new_zero();
         register.set_command_ready(if value.command_ready {
-            CommandStatus::Ready
+            raw::CommandStatus::Ready
         } else {
-            CommandStatus::InProgress
+            raw::CommandStatus::InProgress
         });
 
         register.set_data_ready_pressure(value.pressure_ready);
@@ -178,16 +174,16 @@ pub enum InterruptOutput {
     OpenDrain,
 }
 
-impl From<IntOpenDrain> for InterruptOutput {
-    fn from(value: IntOpenDrain) -> Self {
+impl From<raw::IntOpenDrain> for InterruptOutput {
+    fn from(value: raw::IntOpenDrain) -> Self {
         match value {
-            IntOpenDrain::PushPull => Self::PushPull,
-            IntOpenDrain::OpenDrain => Self::OpenDrain,
+            raw::IntOpenDrain::PushPull => Self::PushPull,
+            raw::IntOpenDrain::OpenDrain => Self::OpenDrain,
         }
     }
 }
 
-impl From<InterruptOutput> for IntOpenDrain {
+impl From<InterruptOutput> for raw::IntOpenDrain {
     fn from(value: InterruptOutput) -> Self {
         match value {
             InterruptOutput::PushPull => Self::PushPull,
@@ -207,16 +203,16 @@ pub enum InterruptLevel {
     ActiveHigh,
 }
 
-impl From<RawInterruptLevel> for InterruptLevel {
-    fn from(value: RawInterruptLevel) -> Self {
+impl From<raw::IntLevel> for InterruptLevel {
+    fn from(value: raw::IntLevel) -> Self {
         match value {
-            RawInterruptLevel::ActiveLow => Self::ActiveLow,
-            RawInterruptLevel::ActiveHigh => Self::ActiveHigh,
+            raw::IntLevel::ActiveLow => Self::ActiveLow,
+            raw::IntLevel::ActiveHigh => Self::ActiveHigh,
         }
     }
 }
 
-impl From<InterruptLevel> for RawInterruptLevel {
+impl From<InterruptLevel> for raw::IntLevel {
     fn from(value: InterruptLevel) -> Self {
         match value {
             InterruptLevel::ActiveLow => Self::ActiveLow,
@@ -293,18 +289,18 @@ pub enum PowerMode {
     Normal,
 }
 
-impl From<MeasurementMode> for PowerMode {
-    fn from(value: MeasurementMode) -> Self {
+impl From<raw::MeasurementMode> for PowerMode {
+    fn from(value: raw::MeasurementMode) -> Self {
         match value {
-            MeasurementMode::Sleep => Self::Sleep,
-            MeasurementMode::Forced => Self::Forced,
-            MeasurementMode::Forced2 => Self::Forced,
-            MeasurementMode::Normal => Self::Normal,
+            raw::MeasurementMode::Sleep => Self::Sleep,
+            raw::MeasurementMode::Forced => Self::Forced,
+            raw::MeasurementMode::Forced2 => Self::Forced,
+            raw::MeasurementMode::Normal => Self::Normal,
         }
     }
 }
 
-impl From<PowerMode> for MeasurementMode {
+impl From<PowerMode> for raw::MeasurementMode {
     fn from(value: PowerMode) -> Self {
         match value {
             PowerMode::Sleep => Self::Sleep,
@@ -371,23 +367,25 @@ pub enum Oversampling {
     X32,
 }
 
-impl TryFrom<RawOversampling> for Oversampling {
+impl TryFrom<raw::Oversampling> for Oversampling {
     type Error = ReservedValueError;
 
-    fn try_from(value: RawOversampling) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::Oversampling) -> Result<Self, Self::Error> {
         match value {
-            RawOversampling::X1 => Ok(Self::X1),
-            RawOversampling::X2 => Ok(Self::X2),
-            RawOversampling::X4 => Ok(Self::X4),
-            RawOversampling::X8 => Ok(Self::X8),
-            RawOversampling::X16 => Ok(Self::X16),
-            RawOversampling::X32 => Ok(Self::X32),
-            RawOversampling::Reserved(value) => Err(ReservedValueError::new("oversampling", value)),
+            raw::Oversampling::X1 => Ok(Self::X1),
+            raw::Oversampling::X2 => Ok(Self::X2),
+            raw::Oversampling::X4 => Ok(Self::X4),
+            raw::Oversampling::X8 => Ok(Self::X8),
+            raw::Oversampling::X16 => Ok(Self::X16),
+            raw::Oversampling::X32 => Ok(Self::X32),
+            raw::Oversampling::Reserved(value) => {
+                Err(ReservedValueError::new("oversampling", value))
+            }
         }
     }
 }
 
-impl From<Oversampling> for RawOversampling {
+impl From<Oversampling> for raw::Oversampling {
     fn from(value: Oversampling) -> Self {
         match value {
             Oversampling::X1 => Self::X1,
@@ -504,37 +502,35 @@ pub enum OutputDataRate {
     Hz0P0015,
 }
 
-impl TryFrom<RawOutputDataRate> for OutputDataRate {
+impl TryFrom<raw::OdrSel> for OutputDataRate {
     type Error = ReservedValueError;
 
-    fn try_from(value: RawOutputDataRate) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::OdrSel) -> Result<Self, Self::Error> {
         match value {
-            RawOutputDataRate::Odr200 => Ok(Self::Hz200),
-            RawOutputDataRate::Odr100 => Ok(Self::Hz100),
-            RawOutputDataRate::Odr50 => Ok(Self::Hz50),
-            RawOutputDataRate::Odr25 => Ok(Self::Hz25),
-            RawOutputDataRate::Odr12P5 => Ok(Self::Hz12P5),
-            RawOutputDataRate::Odr6P25 => Ok(Self::Hz6P25),
-            RawOutputDataRate::Odr3P1 => Ok(Self::Hz3P1),
-            RawOutputDataRate::Odr1P5 => Ok(Self::Hz1P5),
-            RawOutputDataRate::Odr0P78 => Ok(Self::Hz0P78),
-            RawOutputDataRate::Odr0P39 => Ok(Self::Hz0P39),
-            RawOutputDataRate::Odr0P2 => Ok(Self::Hz0P2),
-            RawOutputDataRate::Odr0P1 => Ok(Self::Hz0P1),
-            RawOutputDataRate::Odr0P05 => Ok(Self::Hz0P05),
-            RawOutputDataRate::Odr0P02 => Ok(Self::Hz0P02),
-            RawOutputDataRate::Odr0P01 => Ok(Self::Hz0P01),
-            RawOutputDataRate::Odr0P006 => Ok(Self::Hz0P006),
-            RawOutputDataRate::Odr0P003 => Ok(Self::Hz0P003),
-            RawOutputDataRate::Odr0P0015 => Ok(Self::Hz0P0015),
-            RawOutputDataRate::Reserved(value) => {
-                Err(ReservedValueError::new("odr.odr_sel", value))
-            }
+            raw::OdrSel::Odr200 => Ok(Self::Hz200),
+            raw::OdrSel::Odr100 => Ok(Self::Hz100),
+            raw::OdrSel::Odr50 => Ok(Self::Hz50),
+            raw::OdrSel::Odr25 => Ok(Self::Hz25),
+            raw::OdrSel::Odr12P5 => Ok(Self::Hz12P5),
+            raw::OdrSel::Odr6P25 => Ok(Self::Hz6P25),
+            raw::OdrSel::Odr3P1 => Ok(Self::Hz3P1),
+            raw::OdrSel::Odr1P5 => Ok(Self::Hz1P5),
+            raw::OdrSel::Odr0P78 => Ok(Self::Hz0P78),
+            raw::OdrSel::Odr0P39 => Ok(Self::Hz0P39),
+            raw::OdrSel::Odr0P2 => Ok(Self::Hz0P2),
+            raw::OdrSel::Odr0P1 => Ok(Self::Hz0P1),
+            raw::OdrSel::Odr0P05 => Ok(Self::Hz0P05),
+            raw::OdrSel::Odr0P02 => Ok(Self::Hz0P02),
+            raw::OdrSel::Odr0P01 => Ok(Self::Hz0P01),
+            raw::OdrSel::Odr0P006 => Ok(Self::Hz0P006),
+            raw::OdrSel::Odr0P003 => Ok(Self::Hz0P003),
+            raw::OdrSel::Odr0P0015 => Ok(Self::Hz0P0015),
+            raw::OdrSel::Reserved(value) => Err(ReservedValueError::new("odr.odr_sel", value)),
         }
     }
 }
 
-impl From<OutputDataRate> for RawOutputDataRate {
+impl From<OutputDataRate> for raw::OdrSel {
     fn from(value: OutputDataRate) -> Self {
         match value {
             OutputDataRate::Hz200 => Self::Odr200,
@@ -614,22 +610,22 @@ pub enum FilterCoefficient {
     Coefficient127,
 }
 
-impl From<RawFilterCoefficient> for FilterCoefficient {
-    fn from(value: RawFilterCoefficient) -> Self {
+impl From<raw::IirFilterCoefficient> for FilterCoefficient {
+    fn from(value: raw::IirFilterCoefficient) -> Self {
         match value {
-            RawFilterCoefficient::Coef0 => Self::Coefficient0,
-            RawFilterCoefficient::Coef1 => Self::Coefficient1,
-            RawFilterCoefficient::Coef3 => Self::Coefficient3,
-            RawFilterCoefficient::Coef7 => Self::Coefficient7,
-            RawFilterCoefficient::Coef15 => Self::Coefficient15,
-            RawFilterCoefficient::Coef31 => Self::Coefficient31,
-            RawFilterCoefficient::Coef63 => Self::Coefficient63,
-            RawFilterCoefficient::Coef127 => Self::Coefficient127,
+            raw::IirFilterCoefficient::Coef0 => Self::Coefficient0,
+            raw::IirFilterCoefficient::Coef1 => Self::Coefficient1,
+            raw::IirFilterCoefficient::Coef3 => Self::Coefficient3,
+            raw::IirFilterCoefficient::Coef7 => Self::Coefficient7,
+            raw::IirFilterCoefficient::Coef15 => Self::Coefficient15,
+            raw::IirFilterCoefficient::Coef31 => Self::Coefficient31,
+            raw::IirFilterCoefficient::Coef63 => Self::Coefficient63,
+            raw::IirFilterCoefficient::Coef127 => Self::Coefficient127,
         }
     }
 }
 
-impl From<FilterCoefficient> for RawFilterCoefficient {
+impl From<FilterCoefficient> for raw::IirFilterCoefficient {
     fn from(value: FilterCoefficient) -> Self {
         match value {
             FilterCoefficient::Coefficient0 => Self::Coef0,
@@ -682,20 +678,20 @@ pub enum Command {
     SoftReset,
 }
 
-impl TryFrom<RawCommand> for Command {
+impl TryFrom<raw::Command> for Command {
     type Error = ReservedValueError;
 
-    fn try_from(value: RawCommand) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::Command) -> Result<Self, Self::Error> {
         match value {
-            RawCommand::Nop => Ok(Self::Nop),
-            RawCommand::FifoFlush => Ok(Self::FlushFifo),
-            RawCommand::SoftReset => Ok(Self::SoftReset),
-            RawCommand::Reserved(value) => Err(ReservedValueError::new("cmd.cmd", value)),
+            raw::Command::Nop => Ok(Self::Nop),
+            raw::Command::FifoFlush => Ok(Self::FlushFifo),
+            raw::Command::SoftReset => Ok(Self::SoftReset),
+            raw::Command::Reserved(value) => Err(ReservedValueError::new("cmd.cmd", value)),
         }
     }
 }
 
-impl From<Command> for RawCommand {
+impl From<Command> for raw::Command {
     fn from(value: Command) -> Self {
         match value {
             Command::Nop => Self::Nop,
@@ -828,19 +824,15 @@ mod tests {
     #[test]
     fn every_enum_variant_round_trips() {
         for value in [InterruptOutput::PushPull, InterruptOutput::OpenDrain] {
-            assert_eq!(InterruptOutput::from(IntOpenDrain::from(value)), value);
+            assert_eq!(InterruptOutput::from(raw::IntOpenDrain::from(value)), value);
         }
 
         for value in [InterruptLevel::ActiveLow, InterruptLevel::ActiveHigh] {
-            assert_eq!(InterruptLevel::from(RawInterruptLevel::from(value)), value);
+            assert_eq!(InterruptLevel::from(raw::IntLevel::from(value)), value);
         }
 
-        for value in [
-            PowerMode::Sleep,
-            PowerMode::Forced,
-            PowerMode::Normal,
-        ] {
-            assert_eq!(PowerMode::from(MeasurementMode::from(value)), value);
+        for value in [PowerMode::Sleep, PowerMode::Forced, PowerMode::Normal] {
+            assert_eq!(PowerMode::from(raw::MeasurementMode::from(value)), value);
         }
 
         for value in [
@@ -852,7 +844,7 @@ mod tests {
             Oversampling::X32,
         ] {
             assert_eq!(
-                Oversampling::try_from(RawOversampling::from(value)),
+                Oversampling::try_from(raw::Oversampling::from(value)),
                 Ok(value)
             );
         }
@@ -878,7 +870,7 @@ mod tests {
             OutputDataRate::Hz0P0015,
         ] {
             assert_eq!(
-                OutputDataRate::try_from(RawOutputDataRate::from(value)),
+                OutputDataRate::try_from(raw::OdrSel::from(value)),
                 Ok(value)
             );
         }
@@ -894,41 +886,41 @@ mod tests {
             FilterCoefficient::Coefficient127,
         ] {
             assert_eq!(
-                FilterCoefficient::from(RawFilterCoefficient::from(value)),
+                FilterCoefficient::from(raw::IirFilterCoefficient::from(value)),
                 value
             );
         }
 
         for value in [Command::Nop, Command::FlushFifo, Command::SoftReset] {
-            assert_eq!(Command::try_from(RawCommand::from(value)), Ok(value));
+            assert_eq!(Command::try_from(raw::Command::from(value)), Ok(value));
         }
     }
 
     #[test]
     fn reserved_values_report_their_field() {
         let mut oversampling = field_sets::Osr::new_zero();
-        oversampling.set_pressure(RawOversampling::Reserved(6));
+        oversampling.set_pressure(raw::Oversampling::Reserved(6));
         assert_eq!(
             OversamplingConfig::try_from(oversampling),
             Err(ReservedValueError::new("osr.pressure", 6))
         );
 
         let mut oversampling = field_sets::Osr::new_zero();
-        oversampling.set_temperature(RawOversampling::Reserved(7));
+        oversampling.set_temperature(raw::Oversampling::Reserved(7));
         assert_eq!(
             OversamplingConfig::try_from(oversampling),
             Err(ReservedValueError::new("osr.temperature", 7))
         );
 
         let mut output_data_rate = field_sets::Odr::new_zero();
-        output_data_rate.set_odr_sel(RawOutputDataRate::Reserved(31));
+        output_data_rate.set_odr_sel(raw::OdrSel::Reserved(31));
         assert_eq!(
             OutputDataRateConfig::try_from(output_data_rate),
             Err(ReservedValueError::new("odr.odr_sel", 31))
         );
 
         let mut command = field_sets::CmdFieldsIn::new_zero();
-        command.set_cmd(RawCommand::Reserved(1));
+        command.set_cmd(raw::Command::Reserved(1));
         assert_eq!(
             CommandRegister::try_from(command),
             Err(ReservedValueError::new("cmd.cmd", 1))

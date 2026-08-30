@@ -1,4 +1,4 @@
-use crate::field_sets::CalibrationData;
+use crate::raw::field_sets::CalibrationData;
 use uom::si::{
     f32::{Pressure, ThermodynamicTemperature},
     pressure::pascal,

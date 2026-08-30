@@ -1,9 +1,9 @@
-use super::Device;
+use super::raw::Device;
 use crate::{
     Measurement,
     calibration::Coefficients,
-    field_sets::{Config, FifoConfig, FifoWatermark, IfConf, IntCtrl, Odr, Osr, PwrCtrl},
     measurement::calculate_altitude,
+    raw::field_sets::{Config, FifoConfig, FifoWatermark, IfConf, IntCtrl, Odr, Osr, PwrCtrl},
 };
 use device_driver::{AsyncRegisterInterface, RegisterInterface};
 use thiserror::Error;
@@ -485,7 +485,7 @@ mod tests {
     extern crate std;
 
     use super::*;
-    use crate::field_sets::Osr;
+    use crate::raw::field_sets::Osr;
     use core::assert_matches;
     use device_driver::FieldSet;
     use device_driver_mock::{LinearMemory, Recording, RegisterOperation, RegisterOperationRef::*};

@@ -1,4 +1,4 @@
-use crate::{CommandStatus, Device};
+use crate::raw::{CommandStatus, Device};
 use device_driver::{
     AsyncCommandInterface, AsyncRegisterInterface, CommandInterface, RegisterInterface,
 };

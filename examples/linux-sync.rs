@@ -1,8 +1,10 @@
 use bmp390::{
-    Bmp390, Command, ConfigurationBuilder, IirFilterCoefficient, MeasurementMode, OdrSel,
-    Oversampling,
-    field_sets::{Config, Odr, Osr, PwrCtrl},
+    Bmp390, ConfigurationBuilder,
     interfaces::{I2cInterface, Polling, Sdo},
+    raw::{
+        Command, IirFilterCoefficient, MeasurementMode, OdrSel, Oversampling,
+        field_sets::{Config, Odr, Osr, PwrCtrl},
+    },
 };
 use clap::Parser;
 use embedded_hal::delay::DelayNs;
