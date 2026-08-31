@@ -1,9 +1,12 @@
-use super::raw::Device;
 use crate::{
     Measurement,
     calibration::Coefficients,
     measurement::calculate_altitude,
-    raw::field_sets::{Config, FifoConfig, FifoWatermark, IfConf, IntCtrl, Odr, Osr, PwrCtrl},
+    raw::Device,
+    registers::{
+        FifoConfig, FifoWatermark, FilterCoefficient, InterfaceConfig, InterruptControl,
+        OutputDataRate, OversamplingConfig, PowerControl,
+    },
 };
 use device_driver::{AsyncRegisterInterface, RegisterInterface};
 use thiserror::Error;
@@ -120,78 +123,80 @@ pub struct ConfigurationBuilder {
     // registers
     fifo_watermark: Option<FifoWatermark>,
     fifo_config: Option<FifoConfig>,
-    int_ctrl: Option<IntCtrl>,
-    if_conf: Option<IfConf>,
-    pwr_ctrl: Option<PwrCtrl>,
-    osr: Option<Osr>,
-    odr: Option<Odr>,
-    config: Option<Config>,
+    interrupt_control: Option<InterruptControl>,
+    interface: Option<InterfaceConfig>,
+    power_control: Option<PowerControl>,
+    oversampling: Option<OversamplingConfig>,
+    output_data_rate: Option<OutputDataRate>,
+    iir_filter: Option<FilterCoefficient>,
 
     // Bmp390
     reference_altitude: Option<Length>,
 }
 
 impl ConfigurationBuilder {
+    pub const DEFAULT: Self = Self {
+        fifo_watermark: None,
+        fifo_config: None,
+        interrupt_control: None,
+        interface: None,
+        power_control: None,
+        oversampling: None,
+        output_data_rate: None,
+        iir_filter: None,
+        reference_altitude: None,
+    };
+
     /// Create a new [`ConfigurationBuilder`] with no registers configured.
     pub const fn new() -> Self {
-        Self {
-            fifo_watermark: None,
-            fifo_config: None,
-            int_ctrl: None,
-            if_conf: None,
-            pwr_ctrl: None,
-            osr: None,
-            odr: None,
-            config: None,
-            reference_altitude: None,
-        }
+        Self::DEFAULT
     }
 
     /// Set the FIFO watermark level.
-    pub const fn fifo_watermark(mut self, fifo_watermark: FifoWatermark) -> Self {
-        self.fifo_watermark = Some(fifo_watermark);
+    pub fn fifo_watermark(mut self, fifo_watermark: impl Into<FifoWatermark>) -> Self {
+        self.fifo_watermark = Some(fifo_watermark.into());
         self
     }
 
     /// Set the FIFO configuration.
-    pub const fn fifo_config(mut self, fifo_config: FifoConfig) -> Self {
-        self.fifo_config = Some(fifo_config);
+    pub fn fifo_config(mut self, fifo_config: impl Into<FifoConfig>) -> Self {
+        self.fifo_config = Some(fifo_config.into());
         self
     }
 
     /// Set the interrupt control configuration.
-    pub const fn int_ctrl(mut self, int_ctrl: IntCtrl) -> Self {
-        self.int_ctrl = Some(int_ctrl);
+    pub fn interrupt_control(mut self, int_ctrl: impl Into<InterruptControl>) -> Self {
+        self.interrupt_control = Some(int_ctrl.into());
         self
     }
 
     /// Set the serial interface settings.
-    pub const fn if_conf(mut self, if_conf: IfConf) -> Self {
-        self.if_conf = Some(if_conf);
+    pub fn interface(mut self, if_conf: impl Into<InterfaceConfig>) -> Self {
+        self.interface = Some(if_conf.into());
         self
     }
 
     /// Set the power control configuration.
-    pub const fn pwr_ctrl(mut self, pwr_ctrl: PwrCtrl) -> Self {
-        self.pwr_ctrl = Some(pwr_ctrl);
+    pub fn power_control(mut self, pwr_ctrl: impl Into<PowerControl>) -> Self {
+        self.power_control = Some(pwr_ctrl.into());
         self
     }
 
     /// Set the oversampling settings.
-    pub const fn osr(mut self, osr: Osr) -> Self {
-        self.osr = Some(osr);
+    pub fn oversampling(mut self, osr: impl Into<OversamplingConfig>) -> Self {
+        self.oversampling = Some(osr.into());
         self
     }
 
     /// Set the output data rate.
-    pub const fn odr(mut self, odr: Odr) -> Self {
-        self.odr = Some(odr);
+    pub fn output_data_rate(mut self, odr: impl Into<OutputDataRate>) -> Self {
+        self.output_data_rate = Some(odr.into());
         self
     }
 
     /// Set the IIR filter coefficients.
-    pub const fn config(mut self, config: Config) -> Self {
-        self.config = Some(config);
+    pub fn iir_filter(mut self, config: impl Into<FilterCoefficient>) -> Self {
+        self.iir_filter = Some(config.into());
         self
     }
 
@@ -199,7 +204,7 @@ impl ConfigurationBuilder {
     ///
     /// This isn't a register itself, but is useful for updating the [`Bmp390`]
     /// during configuration.
-    pub const fn reference_altitude(mut self, reference_altitude: Length) -> Self {
+    pub fn reference_altitude(mut self, reference_altitude: Length) -> Self {
         self.reference_altitude = Some(reference_altitude);
         self
     }
@@ -207,7 +212,7 @@ impl ConfigurationBuilder {
 
 impl Default for ConfigurationBuilder {
     fn default() -> Self {
-        Self::new()
+        Self::DEFAULT
     }
 }
 
@@ -217,8 +222,8 @@ pub enum ConfigureError<E> {
     #[error(transparent)]
     Interface(#[from] E),
 
-    #[error("The configuration was invalid.")]
-    InvalidConfiguration,
+    #[error("The device rejected the configuration as invalid.")]
+    RejectedByDevice,
 }
 
 impl<I, E> Bmp390<I>
@@ -247,7 +252,7 @@ where
         if let Some(fifo_watermark) = builder.fifo_watermark {
             self.device
                 .fifo_watermark()
-                .write_async(|w| *w = fifo_watermark)
+                .write_async(|w| *w = fifo_watermark.into())
                 .await?;
             any = true;
         }
@@ -255,51 +260,63 @@ where
         if let Some(fifo_config) = builder.fifo_config {
             self.device
                 .fifo_config()
-                .write_async(|w| *w = fifo_config)
+                .write_async(|w| *w = fifo_config.into())
                 .await?;
             any = true;
         }
 
-        if let Some(int_ctrl) = builder.int_ctrl {
+        if let Some(interrupt_control) = builder.interrupt_control {
             self.device
                 .int_ctrl()
-                .write_async(|w| *w = int_ctrl)
+                .write_async(|w| *w = interrupt_control.into())
                 .await?;
             any = true;
         }
 
-        if let Some(if_conf) = builder.if_conf {
-            self.device.if_conf().write_async(|w| *w = if_conf).await?;
+        if let Some(interface) = builder.interface {
+            self.device
+                .if_conf()
+                .write_async(|w| *w = interface.into())
+                .await?;
             any = true;
         }
 
-        if let Some(pwr_ctrl) = builder.pwr_ctrl {
+        if let Some(power_control) = builder.power_control {
             self.device
                 .pwr_ctrl()
-                .write_async(|w| *w = pwr_ctrl)
+                .write_async(|w| *w = power_control.into())
                 .await?;
             any = true;
         }
 
-        if let Some(osr) = builder.osr {
-            self.device.osr().write_async(|w| *w = osr).await?;
+        if let Some(oversampling) = builder.oversampling {
+            self.device
+                .osr()
+                .write_async(|w| *w = oversampling.into())
+                .await?;
             any = true;
         }
 
-        if let Some(odr) = builder.odr {
-            self.device.odr().write_async(|w| *w = odr).await?;
+        if let Some(output_data_rate) = builder.output_data_rate {
+            self.device
+                .odr()
+                .write_async(|w| *w = output_data_rate.into())
+                .await?;
             any = true;
         }
 
-        if let Some(config) = builder.config {
-            self.device.config().write_async(|w| *w = config).await?;
+        if let Some(iir_filter) = builder.iir_filter {
+            self.device
+                .config()
+                .write_async(|w| *w = iir_filter.into())
+                .await?;
             any = true;
         }
 
         if any {
             let err_reg = self.device.err_reg().read_async().await?;
             if err_reg.conf_err() {
-                return Err(ConfigureError::InvalidConfiguration);
+                return Err(ConfigureError::RejectedByDevice);
             }
         }
 
@@ -381,49 +398,51 @@ where
         if let Some(fifo_watermark) = builder.fifo_watermark {
             self.device
                 .fifo_watermark()
-                .write(|w| *w = fifo_watermark)?;
+                .write(|w| *w = fifo_watermark.into())?;
             any = true;
         }
 
         if let Some(fifo_config) = builder.fifo_config {
-            self.device.fifo_config().write(|w| *w = fifo_config)?;
+            self.device
+                .fifo_config()
+                .write(|w| *w = fifo_config.into())?;
             any = true;
         }
 
-        if let Some(int_ctrl) = builder.int_ctrl {
-            self.device.int_ctrl().write(|w| *w = int_ctrl)?;
+        if let Some(int_ctrl) = builder.interrupt_control {
+            self.device.int_ctrl().write(|w| *w = int_ctrl.into())?;
             any = true;
         }
 
-        if let Some(if_conf) = builder.if_conf {
-            self.device.if_conf().write(|w| *w = if_conf)?;
+        if let Some(if_conf) = builder.interface {
+            self.device.if_conf().write(|w| *w = if_conf.into())?;
             any = true;
         }
 
-        if let Some(pwr_ctrl) = builder.pwr_ctrl {
-            self.device.pwr_ctrl().write(|w| *w = pwr_ctrl)?;
+        if let Some(pwr_ctrl) = builder.power_control {
+            self.device.pwr_ctrl().write(|w| *w = pwr_ctrl.into())?;
             any = true;
         }
 
-        if let Some(osr) = builder.osr {
-            self.device.osr().write(|w| *w = osr)?;
+        if let Some(osr) = builder.oversampling {
+            self.device.osr().write(|w| *w = osr.into())?;
             any = true;
         }
 
-        if let Some(odr) = builder.odr {
-            self.device.odr().write(|w| *w = odr)?;
+        if let Some(odr) = builder.output_data_rate {
+            self.device.odr().write(|w| *w = odr.into())?;
             any = true;
         }
 
-        if let Some(config) = builder.config {
-            self.device.config().write(|w| *w = config)?;
+        if let Some(config) = builder.iir_filter {
+            self.device.config().write(|w| *w = config.into())?;
             any = true;
         }
 
         if any {
             let err_reg = self.device.err_reg().read()?;
             if err_reg.conf_err() {
-                return Err(ConfigureError::InvalidConfiguration);
+                return Err(ConfigureError::RejectedByDevice);
             }
         }
 
@@ -485,7 +504,7 @@ mod tests {
     extern crate std;
 
     use super::*;
-    use crate::raw::field_sets::Osr;
+    use crate::raw;
     use core::assert_matches;
     use device_driver::FieldSet;
     use device_driver_mock::{LinearMemory, Recording, RegisterOperation, RegisterOperationRef::*};
@@ -609,8 +628,9 @@ mod tests {
     #[tokio::test]
     async fn configure_writes_register_and_checks_for_errors() {
         let mut bmp390 = Bmp390::new(interface());
+        let osr = OversamplingConfig::try_from(raw::field_sets::Osr::from([0x12])).unwrap();
         bmp390
-            .configure_async(ConfigurationBuilder::new().osr(Osr::from([0x12])))
+            .configure_async(ConfigurationBuilder::new().oversampling(osr))
             .await
             .unwrap();
 
@@ -643,11 +663,12 @@ mod tests {
             .write(|w| w.set_conf_err(true))
             .unwrap();
 
+        let osr = OversamplingConfig::try_from(raw::field_sets::Osr::from([0x12])).unwrap();
         let result = bmp390
-            .configure_async(ConfigurationBuilder::new().osr(Osr::new()))
+            .configure_async(ConfigurationBuilder::new().oversampling(osr))
             .await;
 
-        assert_eq!(result, Err(ConfigureError::InvalidConfiguration));
+        assert_eq!(result, Err(ConfigureError::RejectedByDevice));
     }
 
     #[test]

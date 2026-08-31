@@ -1,9 +1,10 @@
 use bmp390::{
     Bmp390, ConfigurationBuilder,
     interfaces::{I2cInterface, Polling, Sdo},
-    raw::{
-        Command, IirFilterCoefficient, MeasurementMode, OdrSel, Oversampling,
-        field_sets::{Config, Odr, Osr, PwrCtrl},
+    raw::Command,
+    registers::{
+        FilterCoefficient, OutputDataRate, Oversampling, OversamplingConfig, PowerControl,
+        PowerMode,
     },
 };
 use clap::Parser;
@@ -70,28 +71,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // configure
     let builder = ConfigurationBuilder::new()
-        .config({
-            let mut c = Config::new();
-            c.set_iir_filter(IirFilterCoefficient::Coef15);
-            c
+        .iir_filter(FilterCoefficient::Coefficient15)
+        .output_data_rate(OutputDataRate::Hz50)
+        .oversampling(OversamplingConfig {
+            pressure: Oversampling::X8,
+            temperature: Oversampling::X1,
         })
-        .odr({
-            let mut odr = Odr::new();
-            odr.set_odr_sel(OdrSel::Odr50);
-            odr
-        })
-        .osr({
-            let mut osr = Osr::new();
-            osr.set_pressure(Oversampling::X8);
-            osr.set_temperature(Oversampling::X1);
-            osr
-        })
-        .pwr_ctrl({
-            let mut pwr = PwrCtrl::new();
-            pwr.set_pressure_enable(true);
-            pwr.set_temperature_enable(true);
-            pwr.set_mode(MeasurementMode::Normal);
-            pwr
+        .power_control(PowerControl {
+            pressure_enabled: true,
+            temperature_enabled: true,
+            mode: PowerMode::Normal,
         });
 
     bmp390.configure(builder)?;
