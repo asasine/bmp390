@@ -59,7 +59,7 @@ pub mod registers;
 pub use bmp390::{Bmp390, ConfigurationBuilder};
 pub use measurement::Measurement;
 
-pub mod raw {
+mod raw {
     //! Low-level register interface, provided by [`device_driver`].
     //!
     //! Most applications should use [`crate::Bmp390`] and the ergonomic high-level API it provides.
