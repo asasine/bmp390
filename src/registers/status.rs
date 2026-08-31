@@ -76,7 +76,10 @@ mod tests {
     #[test]
     fn command_status_roundtrips() {
         for status in ALL {
-            assert_eq!(CommandStatus::from(raw::CommandStatus::from(status)), status);
+            assert_eq!(
+                CommandStatus::from(raw::CommandStatus::from(status)),
+                status
+            );
         }
     }
 

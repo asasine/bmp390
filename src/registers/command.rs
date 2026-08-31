@@ -5,9 +5,6 @@ use crate::raw::{self, field_sets};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Command {
-    /// No operation.
-    Nop,
-
     /// Clear all FIFO data.
     FlushFifo,
 
@@ -20,9 +17,9 @@ impl TryFrom<raw::Command> for Command {
 
     fn try_from(value: raw::Command) -> Result<Self, Self::Error> {
         match value {
-            raw::Command::Nop => Ok(Self::Nop),
             raw::Command::FifoFlush => Ok(Self::FlushFifo),
             raw::Command::SoftReset => Ok(Self::SoftReset),
+            raw::Command::Nop => Err(ReservedValueError::new("cmd.cmd", 0)),
             raw::Command::Reserved(value) => Err(ReservedValueError::new("cmd.cmd", value)),
         }
     }
@@ -31,7 +28,6 @@ impl TryFrom<raw::Command> for Command {
 impl From<Command> for raw::Command {
     fn from(value: Command) -> Self {
         match value {
-            Command::Nop => Self::Nop,
             Command::FlushFifo => Self::FifoFlush,
             Command::SoftReset => Self::SoftReset,
         }
@@ -66,7 +62,7 @@ impl From<Command> for field_sets::CmdFieldsIn {
 mod tests {
     use super::*;
 
-    const ALL: [Command; 3] = [Command::Nop, Command::FlushFifo, Command::SoftReset];
+    const ALL: [Command; 2] = [Command::FlushFifo, Command::SoftReset];
 
     #[test]
     fn command_roundtrips() {

@@ -6,12 +6,13 @@
 //! - [`measure`]: methods for retrieving measurements from the sensor, including calibration data.
 //! - [`configuration_builder`]: methods for building and applying device configurations.
 
+mod command;
 mod configuration_builder;
+mod interrupt;
 mod measure;
+mod register_getters;
 #[cfg(test)]
 mod test_utils;
-mod register_getters;
-mod interrupt;
 
 pub use configuration_builder::ConfigurationBuilder;
 

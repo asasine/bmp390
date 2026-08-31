@@ -1,9 +1,8 @@
 use bmp390::{
     Bmp390, ConfigurationBuilder,
     interfaces::{I2cInterface, Polling, Sdo},
-    raw::Command,
     registers::{
-        FilterCoefficient, OutputDataRate, Oversampling, OversamplingConfig, PowerControl,
+        Command, FilterCoefficient, OutputDataRate, Oversampling, OversamplingConfig, PowerControl,
         PowerMode,
     },
 };
@@ -94,10 +93,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut delay = Delay;
     let delay_ms = args.delay_ms();
 
-    let result = bmp390
-        .device()
-        .cmd()
-        .dispatch(|cmd| cmd.set_cmd(Command::SoftReset));
+    let result = bmp390.execute(Command::SoftReset);
 
     eprintln!("Soft reset: {:?}", result);
 
