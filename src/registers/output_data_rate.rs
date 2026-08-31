@@ -117,7 +117,7 @@ impl TryFrom<field_sets::Odr> for OutputDataRate {
     type Error = ReservedValueError;
 
     fn try_from(value: field_sets::Odr) -> Result<Self, Self::Error> {
-        Ok(value.odr_sel().try_into()?)
+        value.odr_sel().try_into()
     }
 }
 
