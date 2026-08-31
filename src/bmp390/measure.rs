@@ -73,6 +73,14 @@ where
         let measurement = self.measure_async().await?;
         Ok(measurement.altitude)
     }
+
+    /// Get the sensor time.
+    ///
+    /// This is an internal timestamp that can be used to correlate measurments.
+    pub async fn sensor_time_async(&mut self) -> Result<u32, E> {
+        let sensor_time = self.device.sensor_time().read_async().await?;
+        Ok(sensor_time.value())
+    }
 }
 
 impl<I, E> Bmp390<I>
@@ -132,6 +140,14 @@ where
     pub fn altitude(&mut self) -> Result<Length, E> {
         let measurement = self.measure()?;
         Ok(measurement.altitude)
+    }
+
+    /// Get the sensor time.
+    ///
+    /// This is an internal timestamp that can be used to correlate measurements.
+    pub fn sensor_time(&mut self) -> Result<u32, E> {
+        let sensor_time = self.device.sensor_time().read()?;
+        Ok(sensor_time.value())
     }
 }
 
