@@ -141,9 +141,8 @@ impl From<OutputDataRate> for field_sets::Odr {
     }
 }
 
-
 #[cfg(feature = "embassy-time")]
-mod odr_sel_into_duration {
+mod into_duration {
     use super::OutputDataRate;
     use embassy_time::Duration;
 
