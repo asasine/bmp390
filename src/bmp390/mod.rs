@@ -10,6 +10,8 @@ mod configuration_builder;
 mod measure;
 #[cfg(test)]
 mod test_utils;
+mod register_getters;
+mod interrupt;
 
 pub use configuration_builder::ConfigurationBuilder;
 
