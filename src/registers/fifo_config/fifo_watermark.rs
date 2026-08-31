@@ -9,6 +9,9 @@ use crate::raw::field_sets;
 pub struct FifoWatermark(u16);
 
 impl FifoWatermark {
+    /// The default FIFO watermark level (`0x01`, one sample).
+    pub const DEFAULT: Self = Self(0x01);
+
     /// Maximum valid FIFO watermark level.
     pub const MAX: Self = Self(0x01ff);
 
@@ -40,6 +43,13 @@ impl FifoWatermark {
     /// Get the FIFO watermark level, in sensor samples.
     pub const fn level(&self) -> u16 {
         self.0
+    }
+}
+
+impl Default for FifoWatermark {
+    /// The default FIFO watermark level (`0x01`, one sample).
+    fn default() -> Self {
+        Self::DEFAULT
     }
 }
 

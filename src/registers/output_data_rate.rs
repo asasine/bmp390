@@ -60,6 +60,18 @@ pub enum OutputDataRate {
     Hz0P0015,
 }
 
+impl OutputDataRate {
+    /// The default output data rate: 200 Hz.
+    pub const DEFAULT: Self = Self::Hz200;
+}
+
+impl Default for OutputDataRate {
+    /// The default output data rate: 200 Hz.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl TryFrom<raw::OdrSel> for OutputDataRate {
     type Error = ReservedValueError;
 

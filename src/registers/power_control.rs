@@ -49,6 +49,28 @@ pub struct PowerControl {
     pub mode: PowerMode,
 }
 
+impl PowerControl {
+    /// The default power control configuration.
+    ///
+    /// - Pressure and temperature measurements are disabled.
+    /// - Sensor measurement mode is sleep.
+    pub const DEFAULT: Self = Self {
+        pressure_enabled: false,
+        temperature_enabled: false,
+        mode: PowerMode::Sleep,
+    };
+}
+
+impl Default for PowerControl {
+    /// The default power control configuration.
+    ///
+    /// - Pressure and temperature measurements are disabled.
+    /// - Sensor measurement mode is sleep.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl From<field_sets::PwrCtrl> for PowerControl {
     fn from(value: field_sets::PwrCtrl) -> Self {
         Self {

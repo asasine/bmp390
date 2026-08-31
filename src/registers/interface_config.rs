@@ -72,6 +72,30 @@ pub struct InterfaceConfig {
     pub i2c_watchdog_period: I2cWatchdogPeriod,
 }
 
+impl InterfaceConfig {
+    /// The default interface configuration.
+    ///
+    /// - SPI 4-wire mode.
+    /// - I2C watchdog enabled.
+    /// - I2C watchdog period: short (1.25 ms).
+    pub const DEFAULT: Self = Self {
+        spi: SpiMode::Spi4,
+        i2c_watchdog_enabled: true,
+        i2c_watchdog_period: I2cWatchdogPeriod::Short,
+    };
+}
+
+impl Default for InterfaceConfig {
+    /// The default interface configuration.
+    ///
+    /// - SPI 4-wire mode.
+    /// - I2C watchdog enabled.
+    /// - I2C watchdog period: short (1.25 ms).
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl From<field_sets::IfConf> for InterfaceConfig {
     fn from(value: field_sets::IfConf) -> Self {
         Self {

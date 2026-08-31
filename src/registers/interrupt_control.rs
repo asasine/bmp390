@@ -84,6 +84,40 @@ pub struct InterruptControl {
     pub data_ready_enabled: bool,
 }
 
+impl InterruptControl {
+    /// The default interrupt control configuration.
+    ///
+    /// - Output is push-pull.
+    /// - Active level is active high.
+    /// - Latched is disabled.
+    /// - FIFO watermark and full interrupts are disabled.
+    /// - Drive strength is low.
+    /// - Data-ready interrupt is disabled.
+    pub const DEFAULT: Self = Self {
+        output: InterruptOutput::PushPull,
+        level: InterruptLevel::ActiveHigh,
+        latched: false,
+        fifo_watermark_enabled: false,
+        fifo_full_enabled: false,
+        drive_strength: false,
+        data_ready_enabled: false,
+    };
+}
+
+impl Default for InterruptControl {
+    /// The default interrupt control configuration.
+    ///
+    /// - Output is push-pull.
+    /// - Active level is active high.
+    /// - Latched is disabled.
+    /// - FIFO watermark and full interrupts are disabled.
+    /// - Drive strength is low.
+    /// - Data-ready interrupt is disabled.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl From<field_sets::IntCtrl> for InterruptControl {
     fn from(value: field_sets::IntCtrl) -> Self {
         Self {

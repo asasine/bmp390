@@ -63,6 +63,38 @@ pub struct FifoConfig {
     pub data_select: FifoDataSelect,
 }
 
+impl FifoConfig {
+    /// The default FIFO configuration.
+    ///
+    /// - FIFO is disabled.
+    /// - Stop on full is enabled.
+    /// - Time, pressure, and temperature are disabled.
+    /// - Subsampling is set to 0.
+    /// - Filtered data source.
+    pub const DEFAULT: Self = Self {
+        mode: FifoMode::Disabled,
+        stop_on_full: true,
+        time_enable: false,
+        pressure_enable: false,
+        temperature_enable: false,
+        subsampling: FifoSubsampling::try_new(0).unwrap(),
+        data_select: FifoDataSelect::Filtered,
+    };
+}
+
+impl Default for FifoConfig {
+    /// The default FIFO configuration.
+    ///
+    /// - FIFO is disabled.
+    /// - Stop on full is enabled.
+    /// - Time, pressure, and temperature are disabled.
+    /// - Subsampling is set to 0.
+    /// - Filtered data source.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl From<field_sets::FifoConfig> for FifoConfig {
     fn from(value: field_sets::FifoConfig) -> Self {
         Self {

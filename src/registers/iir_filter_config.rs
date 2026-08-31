@@ -29,6 +29,18 @@ pub enum FilterCoefficient {
     Coefficient127,
 }
 
+impl FilterCoefficient {
+    /// The default filter coefficient: bypass mode.
+    pub const DEFAULT: Self = Self::Coefficient0;
+}
+
+impl Default for FilterCoefficient {
+    /// The default filter coefficient: bypass mode.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl From<raw::IirFilterCoefficient> for FilterCoefficient {
     fn from(value: raw::IirFilterCoefficient) -> Self {
         match value {

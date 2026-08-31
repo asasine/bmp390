@@ -66,6 +66,27 @@ pub struct OversamplingConfig {
     pub temperature: Oversampling,
 }
 
+impl OversamplingConfig {
+    /// The default oversampling configuration.
+    ///
+    /// - Pressure oversampling is 4x.
+    /// - Temperature oversampling is 1x.
+    pub const DEFAULT: Self = Self {
+        pressure: Oversampling::X4,
+        temperature: Oversampling::X1,
+    };
+}
+
+impl Default for OversamplingConfig {
+    /// The default oversampling configuration.
+    ///
+    /// - Pressure oversampling is 4x.
+    /// - Temperature oversampling is 1x.
+    fn default() -> Self {
+        Self::DEFAULT
+    }
+}
+
 impl TryFrom<field_sets::Osr> for OversamplingConfig {
     type Error = ReservedValueError;
 
