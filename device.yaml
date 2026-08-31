@@ -1,0 +1,631 @@
+config:
+    register_address_type: u8
+    command_address_type: u8
+    defmt_feature: "defmt"
+    default_byte_order: LE
+    default_register_access: RO
+
+ChipId:
+    type: register
+    address: 0x00
+    size_bits: 8
+    description: "The Chip ID register contains the chip identification code."
+    reset_value: 0x60
+    fields:
+        value:
+            description: "The chip identification code."
+            base: uint
+            start: 0
+            end: 8
+
+RevId:
+    type: register
+    address: 0x01
+    size_bits: 8
+    description: "The Revision ID register contains the mask revision of the ASIC."
+    reset_value: 0x01
+    fields:
+        value:
+            description: "The mask revision of the ASIC."
+            base: uint
+            start: 0
+            end: 8
+
+ErrReg:
+    type: register
+    address: 0x02
+    size_bits: 3
+    description: "Sensor error conditions."
+    fields:
+        fatal_err:
+            description: "Fatal error."
+            base: bool
+            start: 0
+        cmd_err:
+            description: "Command execution failed. Cleared on read."
+            base: bool
+            start: 1
+        conf_err:
+            description: "Sensor configuration error detected (only working in normal mode). Cleared on read."
+            base: bool
+            start: 2
+
+Status:
+    type: register
+    address: 0x03
+    # more precisely, it's 3 bits, but device-driver requires all field bits be defined within the register size bits
+    size_bits: 7
+    description: "Sensor status flags."
+    fields:
+        command_ready:
+            description: "CMD decoder status."
+            base: uint
+            start: 4
+            end: 5
+            conversion:
+                name: CommandStatus
+                description: "CMD decoder status."
+                InProgress:
+                    description: "Command execution in progress."
+                    value: 0
+                Ready:
+                    description: "Command decoder is ready to accept a new command."
+                    value: 1
+        data_ready_pressure:
+            description: "Data ready for pressure. Reset when one pressure DATA register is read out."
+            base: bool
+            start: 5
+        data_ready_temperature:
+            description: "Data ready for temperature. Reset when the temperature DATA register is read out."
+            base: bool
+            start: 6
+
+PressureData:
+    type: register
+    address: 0x04
+    allow_address_overlap: true
+    size_bits: 24
+    description: "24-bit pressure data, split and stored in three consecutive registers."
+    reset_value: 0x800000
+    fields:
+        value:
+            description: "24-bit pressure data."
+            base: uint
+            start: 0
+            end: 24
+
+TemperatureData:
+    type: register
+    address: 0x07
+    size_bits: 24
+    description: "24-bit temperature data, split and stored in three consecutive registers."
+    reset_value: 0x800000
+    fields:
+        value:
+            description: "24-bit temperature data."
+            base: uint
+            start: 0
+            end: 24
+
+SensorTime:
+    type: register
+    address: 0x0C
+    size_bits: 24
+    description: "24-bit sensor time data, split and stored in three consecutive registers."
+    fields:
+        value:
+            description: "24-bit sensor time data."
+            base: uint
+            start: 0
+            end: 24
+
+Data:
+    type: register
+    address: 0x04
+    allow_address_overlap: true
+    size_bits: 48
+    description: "Pressure and temperature data, split and stored in six consecutive registers. Reading in one burst read ensures that the pressure and temperature data are from the same measurement sampling."
+    reset_value: 0x800000800000
+    fields:
+        pressure:
+            description: "24-bit pressure data."
+            base: uint
+            start: 0
+            end: 24
+        temperature:
+            description: "24-bit temperature data."
+            base: uint
+            start: 24
+            end: 48
+
+Event:
+    type: register
+    address: 0x10
+    size_bits: 2
+    description: "Sensor status flags."
+    reset_value: 0x01
+    fields:
+        por_detected:
+            description: "True after device power up or soft reset. Cleared on read."
+            base: bool
+            start: 0
+        itf_act_pt:
+            description: "True when a serial interface transaction occurs during a pressure or temperature conversion. Cleared on read."
+            base: bool
+            start: 1
+
+IntStatus:
+    type: register
+    address: 0x11
+    size_bits: 4
+    description: "Interrupt status. Cleared after reading."
+    fields:
+        fifo_full_watermark:
+            description: "The FIFO Watermark has been reached."
+            base: bool
+            start: 0
+        fifo_full:
+            description: "The FIFO is full."
+            base: bool
+            start: 1
+        data_ready:
+            description: "Data ready for pressure and temperature."
+            base: bool
+            start: 3
+
+FifoLength:
+    type: register
+    address: 0x12
+    size_bits: 9
+    description: "Indicates the current fill level of the FIFO buffer."
+    fields:
+        value:
+            description: "The current fill level of the FIFO buffer."
+            base: uint
+            start: 0
+            end: 9
+
+FifoData:
+    type: register
+    address: 0x14
+    size_bits: 8
+    description: "FIFO data output."
+
+FifoWatermark:
+    type: register
+    address: 0x15
+    size_bits: 9
+    description: "The FIFO watermark level."
+    access: RW
+    reset_value: 0x001
+
+FifoConfig:
+    type: register
+    address: 0x17
+    size_bits: 16
+    description: "FIFO frame content configuration."
+    access: RW
+    reset_value: 0x0202
+    fields:
+        mode:
+            description: "Enables or disables the FIFO."
+            base: uint
+            start: 0
+            end: 1
+            conversion:
+                name: FifoMode
+                description: "Whether FIFO is enabled or disabled."
+                Disabled:
+                    description: "FIFO is disabled."
+                    value: 0
+                Enabled:
+                    description: "FIFO is enabled."
+                    value: 1
+        stop_on_full:
+            description: "Whether to stop writing samples into FIFO when it is full. True to stop writing samples into FIFO when it is full."
+            base: bool
+            start: 1
+        time_enable:
+            description: "Whether to return sensortime frame after the last valid data frame. True to return sensortime frame after the last valid data frame."
+            base: bool
+            start: 2
+        pressure_enable:
+            description: "Whether to store pressure data in FIFO. True to store pressure data in FIFO."
+            base: bool
+            start: 3
+        temperature_enable:
+            description: "Whether to store temperature data in FIFO. True to store temperature data in FIFO."
+            base: bool
+            start: 4
+        subsampling:
+            description: "FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`."
+            base: uint
+            start: 8
+            end: 11
+        data_select:
+            description: "Selects the data source for pressure and temperature data."
+            base: uint
+            start: 11
+            end: 13
+            conversion:
+                name: FifoDataSelect
+                description: "Selects the data source for pressure and temperature data."
+                Unfiltered:
+                    description: "Unfiltered data is written to FIFO (compensated or uncompensated)."
+                    value: 0
+                Filtered:
+                    description: "Filtered data is written to FIFO (compensated or uncompensated)."
+                    value: 1
+                Reserved: catch_all
+
+IntCtrl:
+    type: register
+    address: 0x19
+    size_bits: 7
+    description: "Interrupt configuration, controlling IntStatus register and the INT pin."
+    access: RW
+    reset_value: 0x02
+    fields:
+        int_open_drain:
+            description: "Configures the INT pin as push-pull or open-drain."
+            base: uint
+            start: 0
+            end: 1
+            conversion:
+                name: IntOpenDrain
+                description: "Configures the INT pin as push-pull or open-drain."
+                PushPull:
+                    description: "INT pin is push-pull."
+                    value: 0
+                OpenDrain:
+                    description: "INT pin is open-drain."
+                    value: 1
+        int_level:
+            description: "Configures the INT pin as active high or active low."
+            base: uint
+            start: 1
+            end: 2
+            conversion:
+                name: IntLevel
+                description: "Configures the INT pin as active high or active low."
+                ActiveLow:
+                    description: "INT pin is active low."
+                    value: 0
+                ActiveHigh:
+                    description: "INT pin is active high."
+                    value: 1
+        int_latch:
+            description: "Configures the INT pin as latched or pulsed. True for latched."
+            base: bool
+            start: 2
+        fifo_watermark_int_enable:
+            description: "Whether to interrupt when the FIFO watermark is reached. True to interrupt when the FIFO watermark is reached."
+            base: bool
+            start: 3
+        fifo_full_int_enable:
+            description: "Whether to interrupt when the FIFO is full. True to interrupt when the FIFO is full."
+            base: bool
+            start: 4
+        int_ds:
+            base: bool
+            start: 5
+        data_ready_int_enable:
+            description: "Whether to interrupt when data is ready for pressure and temperature. True to interrupt when data is ready for pressure and temperature."
+            base: bool
+            start: 6
+
+IfConf:
+    type: register
+    address: 0x1A
+    size_bits: 3
+    description: "Serial interface settings."
+    access: RW
+    fields:
+        spi:
+            description: "Configure SPI Interface Mode for primary interface."
+            base: uint
+            start: 0
+            end: 1
+            conversion:
+                name: SpiMode
+                description: "Configure SPI Interface Mode for primary interface."
+                Spi4:
+                    description: "SPI 4-wire mode."
+                    value: 0
+                Spi3:
+                    description: "SPI 3-wire mode."
+                    value: 1
+        i2c_wdt_en:
+            description: "Whether to enable the I2C Watchdog timer, backed by NVM. True to enable."
+            base: bool
+            start: 1
+        i2c_wdt_sel:
+            description: "Selects the timer period for the I2C Watchdog, backed by NVM."
+            base: uint
+            start: 2
+            end: 3
+            conversion:
+                name: I2cWatchdogPeriod
+                description: "The timeout period for the I2C Watchdog timer."
+                Short:
+                    description: "I2C Watchdog timeout after 1.25 ms."
+                    value: 0
+                Long:
+                    description: "I2C Watchdog timeout after 40 ms."
+                    value: 1
+
+PwrCtrl:
+    type: register
+    address: 0x1B
+    size_bits: 6
+    description: "Enables or disables pressure and temperature measurements and the measurement mode."
+    access: RW
+    fields:
+        pressure_enable:
+            description: "Whether to enable pressure measurements. True to enable."
+            base: bool
+            start: 0
+        temperature_enable:
+            description: "Whether to enable temperature measurements. True to enable."
+            base: bool
+            start: 1
+        mode:
+            description: "Selects the measurement mode."
+            base: uint
+            start: 4
+            end: 6
+            conversion:
+                name: MeasurementMode
+                description: "Selects the measurement mode."
+                Sleep:
+                    description: "Sleep mode. No measurements are performed."
+                    value: 0
+                Forced:
+                    description: "Forced mode. One measurement is performed, then the device returns to sleep mode."
+                    value: 1
+                Forced2:
+                    description: "Forced mode. Equivalent to Forced (`0b01`)."
+                    value: 2
+                Normal:
+                    description: "Normal mode. Continuous measurements are performed at the selected sampling rate."
+                    value: 3
+
+Osr:
+    type: register
+    address: 0x1C
+    size_bits: 6
+    description: "Controls the oversampling settings for pressure and temperature measurements."
+    access: RW
+    reset_value: 0x02
+    fields:
+        pressure:
+            description: "Selects the oversampling rate for pressure measurements."
+            base: uint
+            start: 0
+            end: 3
+            conversion:
+                name: Oversampling
+                description: "Selects the oversampling rate for measurements."
+                X1:
+                    description: "No oversampling."
+                    value: 0
+                X2:
+                    description: "x2 oversampling."
+                    value: 1
+                X4:
+                    description: "x4 oversampling."
+                    value: 2
+                X8:
+                    description: "x8 oversampling."
+                    value: 3
+                X16:
+                    description: "x16 oversampling."
+                    value: 4
+                X32:
+                    description: "x32 oversampling."
+                    value: 5
+                Reserved: catch_all
+        temperature:
+            description: "Selects the oversampling rate for temperature measurements."
+            base: uint
+            start: 3
+            end: 6
+            conversion: Oversampling
+
+Odr:
+    type: register
+    address: 0x1D
+    size_bits: 5
+    description: "Controls the output data rate by means of setting the subdivision/subsampling."
+    access: RW
+    fields:
+        odr_sel:
+            description: "Subdivision factor for pressure and temperature measurement is `2^value`."
+            base: uint
+            start: 0
+            end: 5
+            conversion:
+                name: OdrSel
+                description: "The output data rate for pressure and temperature measurements: `2^value`."
+                Odr200:
+                    description: "200 Hz, 5 ms sampling period, prescaler 1."
+                    value: 0x00
+                Odr100:
+                    description: "100 Hz, 10 ms sampling period, prescaler 2."
+                    value: 0x01
+                Odr50:
+                    description: "50 Hz, 20 ms sampling period, prescaler 4."
+                    value: 0x02
+                Odr25:
+                    description: "25 Hz, 40 ms sampling period, prescaler 8."
+                    value: 0x03
+                Odr12p5:
+                    description: "25/2 Hz, 80 ms sampling period, prescaler 16."
+                    value: 0x04
+                Odr6p25:
+                    description: "25/4 Hz, 160 ms sampling period, prescaler 32."
+                    value: 0x05
+                Odr3p1:
+                    description: "25/8 Hz, 320 ms sampling period, prescaler 64."
+                    value: 0x06
+                Odr1p5:
+                    description: "25/16 Hz, 640 ms sampling period, prescaler 128."
+                    value: 0x07
+                Odr0p78:
+                    description: "25/32 Hz, 1.280 s sampling period, prescaler 256."
+                    value: 0x08
+                Odr0p39:
+                    description: "25/64 Hz, 2.560 s sampling period, prescaler 512."
+                    value: 0x09
+                Odr0p2:
+                    description: "25/128 Hz, 5.120 s sampling period, prescaler 1024."
+                    value: 0x0A
+                Odr0p1:
+                    description: "25/256 Hz, 10.24 s sampling period, prescaler 2048."
+                    value: 0x0B
+                Odr0p05:
+                    description: "25/512 Hz, 20.48 s sampling period, prescaler 4096."
+                    value: 0x0C
+                Odr0p02:
+                    description: "25/1024 Hz, 40.96 s sampling period, prescaler 8192."
+                    value: 0x0D
+                Odr0p01:
+                    description: "25/2048 Hz, 81.92 s sampling period, prescaler 16384."
+                    value: 0x0E
+                Odr0p006:
+                    description: "25/4096 Hz, 163.84 s sampling period, prescaler 32768."
+                    value: 0x0F
+                Odr0p003:
+                    description: "25/8192 Hz, 327.68 s sampling period, prescaler 65536."
+                    value: 0x10
+                Odr0p0015:
+                    description: "25/16384 Hz, 655.36 s sampling period, prescaler 131072."
+                    value: 0x11
+                Reserved: catch_all
+
+Config:
+    type: register
+    address: 0x1F
+    size_bits: 4
+    description: "IIR filter coefficients."
+    access: RW
+    fields:
+        iir_filter:
+            description: "Filter coefficient for IIR filter."
+            base: uint
+            start: 1
+            end: 4
+            conversion:
+                name: IirFilterCoefficient
+                description: "IIR filter coefficient selection."
+                Coef0:
+                    description: "Filter coefficient is 0. Bypass mode."
+                    value: 0
+                Coef1:
+                    description: "Filter coefficient is 1."
+                    value: 1
+                Coef3:
+                    description: "Filter coefficient is 3."
+                    value: 2
+                Coef7:
+                    description: "Filter coefficient is 7."
+                    value: 3
+                Coef15:
+                    description: "Filter coefficient is 15."
+                    value: 4
+                Coef31:
+                    description: "Filter coefficient is 31."
+                    value: 5
+                Coef63:
+                    description: "Filter coefficient is 63."
+                    value: 6
+                Coef127:
+                    description: "Filter coefficient is 127."
+                    value: 7
+
+CalibrationData:
+    type: register
+    address: 0x30
+    size_bits: 176
+    description: "Calibration data for pressure and temperature compensation."
+    fields:
+        nvm_par_t1:
+            base: uint
+            start: 8
+            end: 24
+        nvm_par_t2:
+            base: uint
+            start: 24
+            end: 40
+        nvm_par_t3:
+            base: int
+            start: 40
+            end: 48
+        nvm_par_p1:
+            base: int
+            start: 48
+            end: 64
+        nvm_par_p2:
+            base: int
+            start: 64
+            end: 80
+        nvm_par_p3:
+            base: int
+            start: 80
+            end: 88
+        nvm_par_p4:
+            base: int
+            start: 88
+            end: 96
+        nvm_par_p5:
+            base: uint
+            start: 96
+            end: 112
+        nvm_par_p6:
+            base: uint
+            start: 112
+            end: 128
+        nvm_par_p7:
+            base: int
+            start: 128
+            end: 136
+        nvm_par_p8:
+            base: int
+            start: 136
+            end: 144
+        nvm_par_p9:
+            base: int
+            start: 144
+            end: 160
+        nvm_par_p10:
+            base: int
+            start: 160
+            end: 168
+        nvm_par_p11:
+            base: int
+            start: 168
+            end: 176
+
+Cmd:
+    type: command
+    address: 0x7E
+    size_bits_in: 8
+    fields_in:
+        cmd:
+            description: "Command to execute."
+            base: uint
+            start: 0
+            end: 8
+            conversion:
+                name: Command
+                description: "Command to execute."
+                Nop:
+                    description: "No operation."
+                    value: 0x00
+                FifoFlush:
+                    description: "Clears all data in the FIFO. Does not change FIFO_CONFIG registers."
+                    value: 0xB0
+                SoftReset:
+                    description: "Triggers a reset. All user configuration settings are overwritten with their default state."
+                    value: 0xB6
+                Reserved: catch_all

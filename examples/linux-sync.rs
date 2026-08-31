@@ -1,4 +1,11 @@
-use bmp390::{sync::Bmp390, Address, Configuration};
+use bmp390::{
+    Bmp390, ConfigurationBuilder,
+    interfaces::{I2cInterface, Polling, Sdo},
+    registers::{
+        Command, FilterCoefficient, OutputDataRate, Oversampling, OversamplingConfig, PowerControl,
+        PowerMode,
+    },
+};
 use clap::Parser;
 use embedded_hal::delay::DelayNs;
 use linux_embedded_hal::{Delay, I2cdev};
@@ -37,35 +44,76 @@ impl Args {
     }
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
     eprintln!("Using I2C device: {}", args.device);
-    let i2c = I2cdev::new(&args.device)
-        .map_err(bmp390::Error::I2c)
-        .expect("Failed to create I2C device");
+    let i2c = I2cdev::new(&args.device)?;
 
-    let config = Configuration::default();
-    let mut sensor = Bmp390::try_new(i2c, Address::Up, Delay, &config)
-        .expect("Failed to initialize BMP390 sensor");
+    let i2c = Polling {
+        interface: I2cInterface {
+            bus: i2c,
+            address: Sdo::Up,
+        },
+        delay: Delay,
+    };
+
+    let mut bmp390 = Bmp390::new(i2c);
+
+    let chip_id = bmp390.device().chip_id().read()?;
+    eprintln!("Chip ID: {:#04X}", chip_id.value());
+    let rev_id = bmp390.device().rev_id().read()?;
+    eprintln!("Rev ID: {:#04X}", rev_id.value());
+
+    // read event and interrupt status registers to clear any pending interrupts
+    bmp390.device().event().read()?;
+    bmp390.device().int_status().read()?;
+
+    // configure
+    let builder = ConfigurationBuilder::new()
+        .iir_filter(FilterCoefficient::Coefficient15)
+        .output_data_rate(OutputDataRate::Hz50)
+        .oversampling(OversamplingConfig {
+            pressure: Oversampling::X8,
+            temperature: Oversampling::X1,
+        })
+        .power_control(PowerControl {
+            pressure_enabled: true,
+            temperature_enabled: true,
+            mode: PowerMode::Normal,
+        });
+
+    bmp390.configure(builder)?;
+
+    // check for errors after writing config
+    let err_reg = bmp390.device().err_reg().read()?;
+    if err_reg.conf_err() {
+        panic!("Error: configuration was invalid");
+    }
 
     let mut delay = Delay;
     let delay_ms = args.delay_ms();
 
+    let result = bmp390.execute(Command::SoftReset);
+
+    eprintln!("Soft reset: {:?}", result);
+
     if args.forever {
         eprintln!("Measuring forever...");
         for i in 1usize.. {
-            let measurement = sensor.measure().expect("Failed to measure BMP390 data");
+            let measurement = bmp390.measure()?;
             eprintln!("{i}: {measurement}");
             delay.delay_ms(delay_ms);
         }
     } else {
         let count = args.count;
         for i in 1..=count {
-            let measurement = sensor.measure().expect("Failed to measure BMP390 data");
+            let measurement = bmp390.measure()?;
             eprintln!("{i}/{count}: {measurement}");
             if i != count {
                 delay.delay_ms(delay_ms);
             }
         }
     }
+
+    Ok(())
 }
