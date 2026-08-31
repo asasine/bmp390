@@ -19,6 +19,9 @@ jobs:
       run: |
         rustc --version
         cargo --version
+    - uses: Swatinem/rust-cache@v2
+      with:
+          shared-key: cargo
     - name: Build
       run: cargo build --verbose --all-features --all-targets
     - name: Run tests
