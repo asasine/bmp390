@@ -34,7 +34,7 @@ RevId:
 ErrReg:
     type: register
     address: 0x02
-    size_bits: 3
+    size_bits: 8
     description: "Sensor error conditions."
     fields:
         fatal_err:
@@ -54,7 +54,7 @@ Status:
     type: register
     address: 0x03
     # more precisely, it's 3 bits, but device-driver requires all field bits be defined within the register size bits
-    size_bits: 7
+    size_bits: 8
     description: "Sensor status flags."
     fields:
         command_ready:
@@ -141,7 +141,7 @@ Data:
 Event:
     type: register
     address: 0x10
-    size_bits: 2
+    size_bits: 8
     description: "Sensor status flags."
     reset_value: 0x01
     fields:
@@ -157,7 +157,7 @@ Event:
 IntStatus:
     type: register
     address: 0x11
-    size_bits: 4
+    size_bits: 8
     description: "Interrupt status. Cleared after reading."
     fields:
         fifo_full_watermark:
@@ -176,7 +176,7 @@ IntStatus:
 FifoLength:
     type: register
     address: 0x12
-    size_bits: 9
+    size_bits: 16
     description: "Indicates the current fill level of the FIFO buffer."
     fields:
         value:
@@ -194,7 +194,7 @@ FifoData:
 FifoWatermark:
     type: register
     address: 0x15
-    size_bits: 9
+    size_bits: 16
     description: "The FIFO watermark level."
     access: RW
     reset_value: 0x001
@@ -261,7 +261,7 @@ FifoConfig:
 IntCtrl:
     type: register
     address: 0x19
-    size_bits: 7
+    size_bits: 8
     description: "Interrupt configuration, controlling IntStatus register and the INT pin."
     access: RW
     reset_value: 0x02
@@ -317,7 +317,7 @@ IntCtrl:
 IfConf:
     type: register
     address: 0x1A
-    size_bits: 3
+    size_bits: 8
     description: "Serial interface settings."
     access: RW
     fields:
@@ -357,7 +357,7 @@ IfConf:
 PwrCtrl:
     type: register
     address: 0x1B
-    size_bits: 6
+    size_bits: 8
     description: "Enables or disables pressure and temperature measurements and the measurement mode."
     access: RW
     fields:
@@ -393,7 +393,7 @@ PwrCtrl:
 Osr:
     type: register
     address: 0x1C
-    size_bits: 6
+    size_bits: 8
     description: "Controls the oversampling settings for pressure and temperature measurements."
     access: RW
     reset_value: 0x02
@@ -435,7 +435,7 @@ Osr:
 Odr:
     type: register
     address: 0x1D
-    size_bits: 5
+    size_bits: 8
     description: "Controls the output data rate by means of setting the subdivision/subsampling."
     access: RW
     fields:
@@ -506,7 +506,7 @@ Odr:
 Config:
     type: register
     address: 0x1F
-    size_bits: 4
+    size_bits: 8
     description: "IIR filter coefficients."
     access: RW
     fields:
