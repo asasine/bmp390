@@ -49,8 +49,8 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 mod bmp390;
-mod calibration;
 mod extras;
+#[rustfmt::skip]
 mod generated;
 pub mod interfaces;
 mod measurement;

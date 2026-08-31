@@ -1,4 +1,4 @@
-use crate::raw::field_sets::CalibrationData;
+use crate::raw::field_sets;
 use uom::si::{
     f32::{Pressure, ThermodynamicTemperature},
     pressure::pascal,
@@ -83,8 +83,8 @@ impl Coefficients {
     }
 }
 
-impl From<CalibrationData> for Coefficients {
-    fn from(value: CalibrationData) -> Self {
+impl From<field_sets::CalibrationData> for Coefficients {
+    fn from(value: field_sets::CalibrationData) -> Self {
         #[cfg(feature = "defmt")]
         defmt::trace!("NVM_PAR: {}", value);
         let nvm_par_t1 = value.nvm_par_t_1();

@@ -6,6 +6,7 @@
 //! ergonomic value to a generated field set initializes all bits not represented
 //! by the ergonomic type to zero.
 
+mod calibration;
 mod command;
 mod error_status;
 mod event;
@@ -19,6 +20,7 @@ mod oversampling;
 mod power_control;
 mod status;
 
+pub use calibration::Coefficients;
 pub use command::{Command, CommandRegister};
 pub use error_status::ErrorStatus;
 pub use event::Event;
