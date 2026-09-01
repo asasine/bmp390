@@ -1,4 +1,4 @@
-use crate::raw::field_sets;
+use crate::raw;
 
 /// FIFO watermark level.
 ///
@@ -53,15 +53,15 @@ impl Default for FifoWatermark {
     }
 }
 
-impl From<field_sets::FifoWatermark> for FifoWatermark {
-    /// Convert a [`field_sets::FifoWatermark`] into a [`FifoWatermark`] using [`Self::new_masked`].
-    fn from(value: field_sets::FifoWatermark) -> Self {
+impl From<raw::FifoWatermark> for FifoWatermark {
+    /// Convert a [`raw::FifoWatermark`] into a [`FifoWatermark`] using [`Self::new_masked`].
+    fn from(value: raw::FifoWatermark) -> Self {
         let raw = u16::from_le_bytes(value.into());
         Self::new_masked(raw)
     }
 }
 
-impl From<FifoWatermark> for field_sets::FifoWatermark {
+impl From<FifoWatermark> for raw::FifoWatermark {
     fn from(value: FifoWatermark) -> Self {
         value.0.to_le_bytes().into()
     }
@@ -98,7 +98,7 @@ mod tests {
     #[test]
     fn from_raw_masks_excess_bits() {
         // 0xFFFF exceeds 9-bit maximum
-        let raw = field_sets::FifoWatermark::from([0xFF, 0xFF]);
+        let raw = raw::FifoWatermark::from([0xFF, 0xFF]);
         let fifo_watermark = FifoWatermark::from(raw);
         assert_eq!(fifo_watermark.0, 0x1FF); // Only lower 9 bits should be kept
     }

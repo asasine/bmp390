@@ -1,6 +1,6 @@
-use crate::raw::field_sets;
+use crate::raw;
 
-/// Interrupt flags from [`field_sets::IntStatus`]. These flags are cleared on read.
+/// Interrupt flags from [`IntStatus`]. These flags are cleared on read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InterruptStatus {
@@ -14,8 +14,8 @@ pub struct InterruptStatus {
     pub data_ready: bool,
 }
 
-impl From<field_sets::IntStatus> for InterruptStatus {
-    fn from(value: field_sets::IntStatus) -> Self {
+impl From<raw::IntStatus> for InterruptStatus {
+    fn from(value: raw::IntStatus) -> Self {
         Self {
             fifo_watermark: value.fifo_full_watermark(),
             fifo_full: value.fifo_full(),
@@ -24,9 +24,9 @@ impl From<field_sets::IntStatus> for InterruptStatus {
     }
 }
 
-impl From<InterruptStatus> for field_sets::IntStatus {
+impl From<InterruptStatus> for raw::IntStatus {
     fn from(value: InterruptStatus) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_fifo_full_watermark(value.fifo_watermark);
         register.set_fifo_full(value.fifo_full);
         register.set_data_ready(value.data_ready);
@@ -47,7 +47,7 @@ mod tests {
         };
 
         assert_eq!(
-            InterruptStatus::from(field_sets::IntStatus::from(interrupt_status)),
+            InterruptStatus::from(raw::IntStatus::from(interrupt_status)),
             interrupt_status
         );
     }

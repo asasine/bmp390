@@ -1,5 +1,5 @@
 use super::ReservedValueError;
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Output data rate for pressure and temperature measurements.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -125,17 +125,17 @@ impl From<OutputDataRate> for raw::OdrSel {
     }
 }
 
-impl TryFrom<field_sets::Odr> for OutputDataRate {
+impl TryFrom<raw::Odr> for OutputDataRate {
     type Error = ReservedValueError;
 
-    fn try_from(value: field_sets::Odr) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::Odr) -> Result<Self, Self::Error> {
         value.odr_sel().try_into()
     }
 }
 
-impl From<OutputDataRate> for field_sets::Odr {
+impl From<OutputDataRate> for raw::Odr {
     fn from(value: OutputDataRate) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_odr_sel(value.into());
         register
     }
@@ -277,7 +277,7 @@ mod tests {
         for rate in ALL {
             let output_data_rate = rate;
             assert_eq!(
-                OutputDataRate::try_from(field_sets::Odr::from(output_data_rate)),
+                OutputDataRate::try_from(raw::Odr::from(output_data_rate)),
                 Ok(output_data_rate)
             );
         }
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn error_reports_field() {
-        let mut output_data_rate = field_sets::Odr::new_zero();
+        let mut output_data_rate = raw::Odr::default();
         output_data_rate.set_odr_sel(raw::OdrSel::Reserved(31));
         assert_eq!(
             OutputDataRate::try_from(output_data_rate),

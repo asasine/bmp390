@@ -1,5 +1,5 @@
 use super::ReservedValueError;
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Command accepted by the BMP390 command register.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -34,7 +34,7 @@ impl From<Command> for raw::Command {
     }
 }
 
-/// Command register value represented by [`field_sets::CmdFieldsIn`].
+/// Command register value represented by [`CmdFieldsIn`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CommandRegister {
@@ -42,17 +42,17 @@ pub struct CommandRegister {
     pub command: Command,
 }
 
-impl TryFrom<field_sets::CmdFieldsIn> for Command {
+impl TryFrom<raw::CmdFieldsIn> for Command {
     type Error = ReservedValueError;
 
-    fn try_from(value: field_sets::CmdFieldsIn) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::CmdFieldsIn) -> Result<Self, Self::Error> {
         value.cmd().try_into()
     }
 }
 
-impl From<Command> for field_sets::CmdFieldsIn {
+impl From<Command> for raw::CmdFieldsIn {
     fn from(value: Command) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_cmd(value.into());
         register
     }
@@ -75,7 +75,7 @@ mod tests {
     fn roundtrips() {
         for command in ALL {
             assert_eq!(
-                Command::try_from(field_sets::CmdFieldsIn::from(command)),
+                Command::try_from(raw::CmdFieldsIn::from(command)),
                 Ok(command)
             );
         }
@@ -83,7 +83,7 @@ mod tests {
 
     #[test]
     fn error_reports_field() {
-        let mut command = field_sets::CmdFieldsIn::new_zero();
+        let mut command = raw::CmdFieldsIn::default();
         command.set_cmd(raw::Command::Reserved(1));
         assert_eq!(
             Command::try_from(command),

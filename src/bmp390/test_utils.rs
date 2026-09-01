@@ -3,7 +3,6 @@
 extern crate std;
 
 use crate::raw::Device;
-use device_driver::FieldSet;
 use device_driver_mock::{LinearMemory, Recording};
 use std::vec;
 
@@ -18,12 +17,12 @@ pub fn interface() -> Recording<LinearMemory> {
     let mut d = Device::new(interface);
     let Ok(()) = d.pressure_data().write(|w| w.set_value(0x6b_b3_cb));
     let Ok(()) = d.temperature_data().write(|w| w.set_value(0x82_ba_d1));
-    let Ok(()) = d.calibration_data().write(|w| {
-        w.get_inner_buffer_mut().copy_from_slice(&CALIBRATION_BYTES);
-    });
+    let Ok(()) = d
+        .calibration_data()
+        .write(|w| *w = CALIBRATION_BYTES.into());
 
     Recording {
-        interface: d.interface,
+        interface: d.free(),
         operations: vec![],
     }
 }

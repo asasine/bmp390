@@ -15,7 +15,7 @@ where
     pub fn execute(&mut self, command: Command) -> Result<(), E> {
         self.device
             .cmd()
-            .dispatch(|cmd| cmd.set_cmd(command.into()))
+            .dispatch_in(|cmd| cmd.set_cmd(command.into()))
     }
 }
 
@@ -27,7 +27,7 @@ where
     pub async fn execute_async(&mut self, command: Command) -> Result<(), E> {
         self.device
             .cmd()
-            .dispatch_async(|cmd| cmd.set_cmd(command.into()))
+            .dispatch_in_async(|cmd| cmd.set_cmd(command.into()))
             .await
     }
 }

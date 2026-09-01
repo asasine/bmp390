@@ -86,8 +86,7 @@ impl<I: defmt::Format> defmt::Format for Bmp390<I> {
     fn format(&self, fmt: defmt::Formatter) {
         defmt::write!(
             fmt,
-            "Bmp390 {{ interface: {}, coefficients: {}, reference_altitude: {} m }}",
-            self.device.interface,
+            "Bmp390 {{ coefficients: {}, reference_altitude: {} m }}",
             self.coefficients,
             self.reference_altitude.get::<meter>()
         );

@@ -1,6 +1,6 @@
-use crate::raw::field_sets;
+use crate::raw;
 
-/// Event flags from [`field_sets::Event`]. These flags are cleared on read.
+/// Event flags from [`Event`]. These flags are cleared on read.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Event {
@@ -11,8 +11,8 @@ pub struct Event {
     pub interface_activity: bool,
 }
 
-impl From<field_sets::Event> for Event {
-    fn from(value: field_sets::Event) -> Self {
+impl From<raw::Event> for Event {
+    fn from(value: raw::Event) -> Self {
         Self {
             power_on_reset: value.por_detected(),
             interface_activity: value.itf_act_pt(),
@@ -20,9 +20,9 @@ impl From<field_sets::Event> for Event {
     }
 }
 
-impl From<Event> for field_sets::Event {
+impl From<Event> for raw::Event {
     fn from(value: Event) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_por_detected(value.power_on_reset);
         register.set_itf_act_pt(value.interface_activity);
         register
@@ -40,6 +40,6 @@ mod tests {
             interface_activity: true,
         };
 
-        assert_eq!(Event::from(field_sets::Event::from(event)), event);
+        assert_eq!(Event::from(raw::Event::from(event)), event);
     }
 }

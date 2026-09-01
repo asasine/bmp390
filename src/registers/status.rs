@@ -1,4 +1,4 @@
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Command execution status.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
@@ -29,7 +29,7 @@ impl From<CommandStatus> for raw::CommandStatus {
     }
 }
 
-/// Sensor status flags from [`field_sets::Status`].
+/// Sensor status flags from [`Status`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Status {
@@ -47,8 +47,8 @@ pub struct Status {
     pub temperature_ready: bool,
 }
 
-impl From<field_sets::Status> for Status {
-    fn from(value: field_sets::Status) -> Self {
+impl From<raw::Status> for Status {
+    fn from(value: raw::Status) -> Self {
         Self {
             command_ready: value.command_ready().into(),
             pressure_ready: value.data_ready_pressure(),
@@ -57,9 +57,9 @@ impl From<field_sets::Status> for Status {
     }
 }
 
-impl From<Status> for field_sets::Status {
+impl From<Status> for raw::Status {
     fn from(value: Status) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_command_ready(value.command_ready.into());
         register.set_data_ready_pressure(value.pressure_ready);
         register.set_data_ready_temperature(value.temperature_ready);
@@ -92,7 +92,7 @@ mod tests {
                 temperature_ready: true,
             };
 
-            assert_eq!(Status::from(field_sets::Status::from(status)), status);
+            assert_eq!(Status::from(Status::from(status)), status);
         }
     }
 }

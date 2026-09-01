@@ -1,6 +1,7 @@
 use crate::raw::{CommandStatus, Device};
 use device_driver::{
-    AsyncCommandInterface, AsyncRegisterInterface, CommandInterface, RegisterInterface,
+    AsyncCommandInterface, AsyncRegisterInterface, CommandInterface, CommandInterfaceBase,
+    FieldsetMetadata, RegisterInterface, RegisterInterfaceBase,
 };
 use embedded_hal::delay::DelayNs;
 use embedded_hal_async::delay::DelayNs as AsyncDelayNs;
@@ -13,8 +14,8 @@ use thiserror::Error;
 /// register until the command is complete, then checking the [`ERR_REG`] register
 /// for any errors.
 ///
-/// [`STATUS`]: crate::field_sets::Status
-/// [`ERR_REG`]: crate::field_sets::ErrReg
+/// [`STATUS`]: crate::Status
+/// [`ERR_REG`]: crate::ErrReg
 pub struct Polling<I, D> {
     /// The underlying register interface implementation.
     pub interface: I,
@@ -36,39 +37,39 @@ pub enum CommandError<E> {
     CommandFailed,
 }
 
+impl<I: RegisterInterfaceBase, D> CommandInterfaceBase for Polling<I, D> {
+    type Error = CommandError<I::Error>;
+    type AddressType = I::AddressType;
+}
+
 /// Implements command dispatching for the BMP390 over I2C by polling the `STATUS`
 /// register until the command is complete, then checking the `ERR_REG` register
 /// for any errors.
 impl<I, D> AsyncCommandInterface for Polling<I, D>
 where
     I: AsyncRegisterInterface<AddressType = u8>,
-    for<'a> &'a mut I: AsyncRegisterInterface<Error = I::Error, AddressType = I::AddressType>,
     D: AsyncDelayNs,
 {
-    type Error = CommandError<I::Error>;
-    type AddressType = u8;
-
     /// Dispatch a command to the BMP390 device.
     ///
     /// # Arguments
     /// - `address`: The command register's address. Should always be `CMD` (0x7E)
     ///   for the BMP390.
-    /// - `size_bits_in`: The size of the input data in bits. Should always be 8
-    ///   for the `CMD` register.
     /// - `input`: The input data to send to the command register. Should always
     ///   be a single byte of the command to execute.
-    /// - `size_bits_out`: Unused; the BMP390 does not return any data for commands.
-    /// - `output`: Unused; the BMP390 does not return any data for commands.
+    /// - `input_metadata`: Metadata for the input fieldset.
+    /// - `_output`: Unused; the BMP390 does not return any data for commands.
+    /// - `_output_metadata`: Unused; metadata for the output fieldset.
     async fn dispatch_command(
         &mut self,
         address: Self::AddressType,
-        size_bits_in: u32,
-        input: &[u8],
-        _size_bits_out: u32,
+        input: &mut [u8],
+        input_metadata: &FieldsetMetadata,
         _output: &mut [u8],
+        _output_metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         // write the command to the CMD register
-        self.write_register(address, size_bits_in, input).await?;
+        self.write_register(address, input, input_metadata).await?;
 
         // poll for command completion
         let mut regs = Device::new(&mut self.interface);
@@ -94,22 +95,18 @@ where
 impl<I, D> CommandInterface for Polling<I, D>
 where
     I: RegisterInterface<AddressType = u8>,
-    for<'a> &'a mut I: RegisterInterface<Error = I::Error, AddressType = I::AddressType>,
     D: DelayNs,
 {
-    type Error = CommandError<I::Error>;
-    type AddressType = u8;
-
     fn dispatch_command(
         &mut self,
         address: Self::AddressType,
-        size_bits_in: u32,
-        input: &[u8],
-        _size_bits_out: u32,
+        input: &mut [u8],
+        input_metadata: &FieldsetMetadata,
         _output: &mut [u8],
+        _output_metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         // write the command to the CMD register
-        self.write_register(address, size_bits_in, input)?;
+        self.write_register(address, input, input_metadata)?;
 
         let mut regs = Device::new(&mut self.interface);
         loop {
@@ -130,102 +127,51 @@ where
     }
 }
 
+impl<I: RegisterInterfaceBase, D> RegisterInterfaceBase for Polling<I, D> {
+    type Error = I::Error;
+    type AddressType = I::AddressType;
+}
+
 /// Supports the same register interface as the underlying interface in addition
 /// to command dispatching via the [`CommandInterface`] trait.
 impl<I: AsyncRegisterInterface, D> AsyncRegisterInterface for Polling<I, D> {
-    type Error = I::Error;
-    type AddressType = I::AddressType;
-
     fn write_register(
         &mut self,
         address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
+        data: &mut [u8],
+        metadata: &FieldsetMetadata,
     ) -> impl Future<Output = Result<(), Self::Error>> {
-        self.interface.write_register(address, size_bits, data)
+        self.interface.write_register(address, data, metadata)
     }
 
     fn read_register(
         &mut self,
         address: Self::AddressType,
-        size_bits: u32,
         data: &mut [u8],
+        metadata: &FieldsetMetadata,
     ) -> impl Future<Output = Result<(), Self::Error>> {
-        self.interface.read_register(address, size_bits, data)
+        self.interface.read_register(address, data, metadata)
     }
 }
 
 /// Supports the same register interface as the underlying interface in addition
 /// to command dispatching via the [`CommandInterface`] trait.
 impl<I: RegisterInterface, D> RegisterInterface for Polling<I, D> {
-    type Error = I::Error;
-    type AddressType = I::AddressType;
-
     fn write_register(
         &mut self,
         address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
+        data: &mut [u8],
+        metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
-        self.interface.write_register(address, size_bits, data)
+        self.interface.write_register(address, data, metadata)
     }
 
     fn read_register(
         &mut self,
         address: Self::AddressType,
-        size_bits: u32,
         data: &mut [u8],
+        metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
-        self.interface.read_register(address, size_bits, data)
-    }
-}
-
-/// Supports the same register interface as the underlying interface in addition
-/// to command dispatching via the [`CommandInterface`] trait.
-impl<I: AsyncRegisterInterface, D> AsyncRegisterInterface for &mut Polling<I, D> {
-    type Error = I::Error;
-    type AddressType = I::AddressType;
-
-    async fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        (*self).write_register(address, size_bits, data).await
-    }
-
-    async fn read_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        (*self).read_register(address, size_bits, data).await
-    }
-}
-
-/// Supports the same register interface as the underlying interface in addition
-/// to command dispatching via the [`CommandInterface`] trait.
-impl<I: RegisterInterface, D> RegisterInterface for &mut Polling<I, D> {
-    type Error = I::Error;
-    type AddressType = I::AddressType;
-
-    fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        (*self).write_register(address, size_bits, data)
-    }
-
-    fn read_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        (*self).read_register(address, size_bits, data)
+        self.interface.read_register(address, data, metadata)
     }
 }

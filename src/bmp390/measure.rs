@@ -156,6 +156,7 @@ mod tests {
     use super::*;
     use crate::bmp390::test_utils::interface;
     use core::assert_matches;
+    use device_driver::Block;
     use device_driver_mock::{RegisterOperation, RegisterOperationRef::*};
     use uom::{
         ConstZero,
@@ -180,7 +181,7 @@ mod tests {
         let Ok(temperature) = bmp390.temperature();
         assert_eq!(temperature, expected_temperature());
         assert_matches!(
-            bmp390.device.interface.ops_as_ref().as_slice(),
+            bmp390.device.interface().ops_as_ref().as_slice(),
             &[
                 Read {
                     address: 0x07,
@@ -243,7 +244,7 @@ mod tests {
         let Ok(_) = bmp390.temperature();
         let calibration_reads = bmp390
             .device
-            .interface
+            .interface()
             .operations
             .iter()
             .filter(|operation| matches!(operation, RegisterOperation::Read { address: 0x30, .. }))

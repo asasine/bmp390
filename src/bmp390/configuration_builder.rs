@@ -285,18 +285,19 @@ mod tests {
     use super::*;
     use crate::{bmp390::test_utils::interface, raw};
     use core::assert_matches;
+    use device_driver::Block;
     use device_driver_mock::RegisterOperationRef::*;
 
     #[test]
     fn configure_writes_register_and_checks_for_errors() {
         let mut bmp390 = Bmp390::new(interface());
-        let osr = OversamplingConfig::try_from(raw::field_sets::Osr::from([0x12])).unwrap();
+        let osr = OversamplingConfig::try_from(raw::Osr::from([0x12])).unwrap();
         bmp390
             .configure(ConfigurationBuilder::new().oversampling(osr))
             .unwrap();
 
         assert_matches!(
-            bmp390.device.interface.ops_as_ref().as_slice(),
+            bmp390.device.interface().ops_as_ref().as_slice(),
             &[
                 Write {
                     address: 0x1c,
@@ -324,7 +325,7 @@ mod tests {
             .write(|w| w.set_conf_err(true))
             .unwrap();
 
-        let osr = OversamplingConfig::try_from(raw::field_sets::Osr::from([0x12])).unwrap();
+        let osr = OversamplingConfig::try_from(raw::Osr::from([0x12])).unwrap();
         let result = bmp390.configure(ConfigurationBuilder::new().oversampling(osr));
 
         assert_eq!(result, Err(ConfigureError::RejectedByDevice));
