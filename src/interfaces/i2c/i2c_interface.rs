@@ -1,6 +1,8 @@
 use super::Sdo;
-use device_driver::{AsyncRegisterInterface, RegisterInterface};
-use embedded_hal::i2c::{I2c, Operation};
+use device_driver::{
+    AsyncRegisterInterface, FieldsetMetadata, RegisterInterface, RegisterInterfaceBase,
+};
+use embedded_hal::i2c::{self, I2c, Operation};
 use embedded_hal_async::i2c::I2c as AsyncI2c;
 
 /// An I2C interface for the BMP390.
@@ -68,15 +70,17 @@ fn read_ops<'a>(register_address: &'a u8, data: &'a mut [u8]) -> [Operation<'a>;
     [register_op(register_address), Operation::Read(data)]
 }
 
-impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
+impl<B: i2c::ErrorType> RegisterInterfaceBase for I2cInterface<B> {
     type Error = B::Error;
     type AddressType = u8;
+}
 
+impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
     async fn write_register(
         &mut self,
         address: Self::AddressType,
-        _size_bits: u32,
-        data: &[u8],
+        data: &mut [u8],
+        _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         let mut operations = write_ops(&address, data);
         self.bus
@@ -87,49 +91,22 @@ impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
     async fn read_register(
         &mut self,
         address: Self::AddressType,
-        _size_bits: u32,
         data: &mut [u8],
+        _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         let mut operations = read_ops(&address, data);
         self.bus
             .transaction(self.address.into(), &mut operations)
             .await
-    }
-}
-
-/// Implement the register interface for any mutable reference to an [`I2cInterface`].
-impl<B: AsyncI2c> AsyncRegisterInterface for &mut I2cInterface<B> {
-    type Error = B::Error;
-    type AddressType = u8;
-
-    async fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        (*self).write_register(address, size_bits, data).await
-    }
-
-    async fn read_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        (*self).read_register(address, size_bits, data).await
     }
 }
 
 impl<B: I2c> RegisterInterface for I2cInterface<B> {
-    type Error = B::Error;
-    type AddressType = u8;
-
     fn write_register(
         &mut self,
         address: Self::AddressType,
-        _size_bits: u32,
-        data: &[u8],
+        data: &mut [u8],
+        _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         let mut operations = write_ops(&address, data);
         self.bus.transaction(self.address.into(), &mut operations)
@@ -138,34 +115,10 @@ impl<B: I2c> RegisterInterface for I2cInterface<B> {
     fn read_register(
         &mut self,
         address: Self::AddressType,
-        _size_bits: u32,
         data: &mut [u8],
+        _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
         let mut operations = read_ops(&address, data);
         self.bus.transaction(self.address.into(), &mut operations)
-    }
-}
-
-/// Implement the register interface for any mutable reference to an [`I2cInterface`].
-impl<B: I2c> RegisterInterface for &mut I2cInterface<B> {
-    type Error = B::Error;
-    type AddressType = u8;
-
-    fn write_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &[u8],
-    ) -> Result<(), Self::Error> {
-        (*self).write_register(address, size_bits, data)
-    }
-
-    fn read_register(
-        &mut self,
-        address: Self::AddressType,
-        size_bits: u32,
-        data: &mut [u8],
-    ) -> Result<(), Self::Error> {
-        (*self).read_register(address, size_bits, data)
     }
 }

@@ -1,5 +1,5 @@
 use super::ReservedValueError;
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Oversampling applied to a measurement.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -55,7 +55,7 @@ impl From<Oversampling> for raw::Oversampling {
     }
 }
 
-/// Pressure and temperature oversampling represented by [`field_sets::Osr`].
+/// Pressure and temperature oversampling represented by [`Osr`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct OversamplingConfig {
@@ -87,10 +87,10 @@ impl Default for OversamplingConfig {
     }
 }
 
-impl TryFrom<field_sets::Osr> for OversamplingConfig {
+impl TryFrom<raw::Osr> for OversamplingConfig {
     type Error = ReservedValueError;
 
-    fn try_from(value: field_sets::Osr) -> Result<Self, Self::Error> {
+    fn try_from(value: raw::Osr) -> Result<Self, Self::Error> {
         let pressure = value
             .pressure()
             .try_into()
@@ -112,9 +112,9 @@ impl TryFrom<field_sets::Osr> for OversamplingConfig {
     }
 }
 
-impl From<OversamplingConfig> for field_sets::Osr {
+impl From<OversamplingConfig> for raw::Osr {
     fn from(value: OversamplingConfig) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_pressure(value.pressure.into());
         register.set_temperature(value.temperature.into());
         register
@@ -154,7 +154,7 @@ mod tests {
                 };
 
                 assert_eq!(
-                    OversamplingConfig::try_from(field_sets::Osr::from(oversampling)),
+                    OversamplingConfig::try_from(raw::Osr::from(oversampling)),
                     Ok(oversampling)
                 );
             }
@@ -163,14 +163,14 @@ mod tests {
 
     #[test]
     fn error_reports_field() {
-        let mut oversampling = field_sets::Osr::new_zero();
+        let mut oversampling = raw::Osr::default();
         oversampling.set_pressure(raw::Oversampling::Reserved(6));
         assert_eq!(
             OversamplingConfig::try_from(oversampling),
             Err(ReservedValueError::new("osr.pressure", 6))
         );
 
-        let mut oversampling = field_sets::Osr::new_zero();
+        let mut oversampling = raw::Osr::default();
         oversampling.set_temperature(raw::Oversampling::Reserved(7));
         assert_eq!(
             OversamplingConfig::try_from(oversampling),

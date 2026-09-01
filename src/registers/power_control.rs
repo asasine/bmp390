@@ -1,4 +1,4 @@
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Sensor measurement mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -35,7 +35,7 @@ impl From<PowerMode> for raw::MeasurementMode {
     }
 }
 
-/// Power and measurement configuration represented by [`field_sets::PwrCtrl`].
+/// Power and measurement configuration represented by [`PwrCtrl`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PowerControl {
@@ -71,8 +71,8 @@ impl Default for PowerControl {
     }
 }
 
-impl From<field_sets::PwrCtrl> for PowerControl {
-    fn from(value: field_sets::PwrCtrl) -> Self {
+impl From<raw::PwrCtrl> for PowerControl {
+    fn from(value: raw::PwrCtrl) -> Self {
         Self {
             pressure_enabled: value.pressure_enable(),
             temperature_enabled: value.temperature_enable(),
@@ -81,9 +81,9 @@ impl From<field_sets::PwrCtrl> for PowerControl {
     }
 }
 
-impl From<PowerControl> for field_sets::PwrCtrl {
+impl From<PowerControl> for raw::PwrCtrl {
     fn from(value: PowerControl) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_pressure_enable(value.pressure_enabled);
         register.set_temperature_enable(value.temperature_enabled);
         register.set_mode(value.mode.into());
@@ -109,6 +109,6 @@ mod tests {
             temperature_enabled: false,
             mode: PowerMode::Forced,
         };
-        assert_eq!(PowerControl::from(field_sets::PwrCtrl::from(power)), power);
+        assert_eq!(PowerControl::from(raw::PwrCtrl::from(power)), power);
     }
 }

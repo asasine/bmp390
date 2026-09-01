@@ -1,4 +1,4 @@
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// IIR filter coefficient.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -71,16 +71,16 @@ impl From<FilterCoefficient> for raw::IirFilterCoefficient {
     }
 }
 
-impl From<FilterCoefficient> for field_sets::Config {
+impl From<FilterCoefficient> for raw::Config {
     fn from(value: FilterCoefficient) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_iir_filter(value.into());
         register
     }
 }
 
-impl From<field_sets::Config> for FilterCoefficient {
-    fn from(value: field_sets::Config) -> Self {
+impl From<raw::Config> for FilterCoefficient {
+    fn from(value: raw::Config) -> Self {
         value.iir_filter().into()
     }
 }
@@ -114,7 +114,7 @@ mod tests {
     fn register_roundtrips() {
         for coefficient in ALL {
             assert_eq!(
-                FilterCoefficient::from(field_sets::Config::from(coefficient)),
+                FilterCoefficient::from(raw::Config::from(coefficient)),
                 coefficient,
             );
         }

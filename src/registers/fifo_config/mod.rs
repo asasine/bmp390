@@ -6,7 +6,7 @@ pub use fifo_data_select::FifoDataSelect;
 pub use fifo_subsampling::FifoSubsampling;
 pub use fifo_watermark::FifoWatermark;
 
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// FIFO mode selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -37,7 +37,7 @@ impl From<FifoMode> for raw::FifoMode {
     }
 }
 
-/// FIFO configuration represented by [`field_sets::FifoConfig`].
+/// FIFO configuration represented by [`FifoConfig`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FifoConfig {
@@ -95,8 +95,8 @@ impl Default for FifoConfig {
     }
 }
 
-impl From<field_sets::FifoConfig> for FifoConfig {
-    fn from(value: field_sets::FifoConfig) -> Self {
+impl From<raw::FifoConfig> for FifoConfig {
+    fn from(value: raw::FifoConfig) -> Self {
         Self {
             mode: value.mode().into(),
             stop_on_full: value.stop_on_full(),
@@ -109,9 +109,9 @@ impl From<field_sets::FifoConfig> for FifoConfig {
     }
 }
 
-impl From<FifoConfig> for field_sets::FifoConfig {
+impl From<FifoConfig> for raw::FifoConfig {
     fn from(value: FifoConfig) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_mode(value.mode.into());
         register.set_stop_on_full(value.stop_on_full);
         register.set_time_enable(value.time_enable);
@@ -146,6 +146,6 @@ mod tests {
             data_select: FifoDataSelect::Filtered,
         };
 
-        assert_eq!(FifoConfig::from(field_sets::FifoConfig::from(fifo)), fifo);
+        assert_eq!(FifoConfig::from(FifoConfig::from(fifo)), fifo);
     }
 }

@@ -1,0 +1,442 @@
+device Device {
+    default-byte-order: LE,
+    register-address-type: u8,
+    command-address-type: u8,
+    word-boundaries: "_:-: :bB:A1:1A:1a:a1:AAa",
+    register-address-mode: mapped,
+    default-access: RW,
+
+    /// The Chip ID register contains the chip identification code.
+    register ChipId {
+        address: 0,
+        reset: 0x60,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// The chip identification code.
+            field value 7:0,
+        },
+    },
+    /// The Revision ID register contains the mask revision of the ASIC.
+    register RevId {
+        address: 1,
+        reset: 0x01,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// The mask revision of the ASIC.
+            field value 7:0,
+        },
+    },
+    /// Sensor error conditions.
+    register ErrReg {
+        address: 2,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Fatal error.
+            field fatal_err 0,
+            /// Command execution failed. Cleared on read.
+            field cmd_err 1,
+            /// Sensor configuration error detected (only working in normal mode). Cleared on read.
+            field conf_err 2,
+        },
+    },
+    /// Sensor status flags.
+    register Status {
+        address: 3,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// CMD decoder status.
+            field command_ready 4 -> _ as
+                /// CMD decoder status.
+                enum CommandStatus {
+                    /// Command execution in progress.
+                    InProgress: 0,
+                    /// Command decoder is ready to accept a new command.
+                    Ready: 1,
+                },
+            /// Data ready for pressure. Reset when one pressure DATA register is read out.
+            field data_ready_pressure 5,
+            /// Data ready for temperature. Reset when the temperature DATA register is read out.
+            field data_ready_temperature 6,
+        },
+    },
+    /// 24-bit pressure data, split and stored in three consecutive registers.
+    register PressureData {
+        address: 4,
+        address-overlap: allow,
+        reset: 0x800000,
+        fields: fieldset _ {
+            size-bytes: 3,
+
+            /// 24-bit pressure data.
+            field value 23:0,
+        },
+    },
+    /// 24-bit temperature data, split and stored in three consecutive registers.
+    register TemperatureData {
+        address: 7,
+        address-overlap: allow,
+        reset: 0x800000,
+        fields: fieldset _ {
+            size-bytes: 3,
+
+            /// 24-bit temperature data.
+            field value 23:0,
+        },
+    },
+    /// 24-bit sensor time data, split and stored in three consecutive registers.
+    register SensorTime {
+        address: 12,
+        fields: fieldset _ {
+            size-bytes: 3,
+
+            /// 24-bit sensor time data.
+            field value 23:0,
+        },
+    },
+    /// Pressure and temperature data, split and stored in six consecutive registers. Reading in one burst read ensures that the pressure and temperature data are from the same measurement sampling.
+    register Data {
+        address: 4,
+        address-overlap: allow,
+        reset: 0x800000800000,
+        fields: fieldset _ {
+            size-bytes: 6,
+
+            /// 24-bit pressure data.
+            field pressure 23:0,
+            /// 24-bit temperature data.
+            field temperature 47:24,
+        },
+    },
+    /// Sensor status flags.
+    register Event {
+        address: 16,
+        reset: 0x01,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// True after device power up or soft reset. Cleared on read.
+            field por_detected 0,
+            /// True when a serial interface transaction occurs during a pressure or temperature conversion. Cleared on read.
+            field itf_act_pt 1,
+        },
+    },
+    /// Interrupt status. Cleared after reading.
+    register IntStatus {
+        address: 17,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// The FIFO Watermark has been reached.
+            field fifo_full_watermark 0,
+            /// The FIFO is full.
+            field fifo_full 1,
+            /// Data ready for pressure and temperature.
+            field data_ready 3,
+        },
+    },
+    /// Indicates the current fill level of the FIFO buffer.
+    register FifoLength {
+        address: 18,
+        fields: fieldset _ {
+            size-bytes: 2,
+
+            /// The current fill level of the FIFO buffer.
+            field value 8:0,
+        },
+    },
+    /// FIFO data output.
+    register FifoData {
+        address: 20,
+        fields: fieldset _ {
+            size-bytes: 1,
+        },
+    },
+    /// The FIFO watermark level.
+    register FifoWatermark {
+        address: 21,
+        reset: 0x001,
+        fields: fieldset _ {
+            size-bytes: 2,
+        },
+    },
+    /// FIFO frame content configuration.
+    register FifoConfig {
+        address: 23,
+        reset: 0x0202,
+        fields: fieldset _ {
+            size-bytes: 2,
+
+            /// Enables or disables the FIFO.
+            field mode 0 -> _ as
+                /// Whether FIFO is enabled or disabled.
+                enum FifoMode {
+                    /// FIFO is disabled.
+                    Disabled: 0,
+                    /// FIFO is enabled.
+                    Enabled: 1,
+                },
+            /// Whether to stop writing samples into FIFO when it is full. True to stop writing samples into FIFO when it is full.
+            field stop_on_full 1,
+            /// Whether to return sensortime frame after the last valid data frame. True to return sensortime frame after the last valid data frame.
+            field time_enable 2,
+            /// Whether to store pressure data in FIFO. True to store pressure data in FIFO.
+            field pressure_enable 3,
+            /// Whether to store temperature data in FIFO. True to store temperature data in FIFO.
+            field temperature_enable 4,
+            /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+            field subsampling 10:8,
+            /// Selects the data source for pressure and temperature data.
+            field data_select 12:11 -> _ as
+                /// Selects the data source for pressure and temperature data.
+                enum FifoDataSelect {
+                    /// Unfiltered data is written to FIFO (compensated or uncompensated).
+                    Unfiltered: 0,
+                    /// Filtered data is written to FIFO (compensated or uncompensated).
+                    Filtered: 1,
+                    Reserved: catch-all _,
+                },
+        },
+    },
+    /// Interrupt configuration, controlling IntStatus register and the INT pin.
+    register IntCtrl {
+        address: 25,
+        reset: 0x02,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Configures the INT pin as push-pull or open-drain.
+            field int_open_drain 0 -> _ as
+                /// Configures the INT pin as push-pull or open-drain.
+                enum IntOpenDrain {
+                    /// INT pin is push-pull.
+                    PushPull: 0,
+                    /// INT pin is open-drain.
+                    OpenDrain: 1,
+                },
+            /// Configures the INT pin as active high or active low.
+            field int_level 1 -> _ as
+                /// Configures the INT pin as active high or active low.
+                enum IntLevel {
+                    /// INT pin is active low.
+                    ActiveLow: 0,
+                    /// INT pin is active high.
+                    ActiveHigh: 1,
+                },
+            /// Configures the INT pin as latched or pulsed. True for latched.
+            field int_latch 2,
+            /// Whether to interrupt when the FIFO watermark is reached. True to interrupt when the FIFO watermark is reached.
+            field fifo_watermark_int_enable 3,
+            /// Whether to interrupt when the FIFO is full. True to interrupt when the FIFO is full.
+            field fifo_full_int_enable 4,
+            field int_ds 5,
+            /// Whether to interrupt when data is ready for pressure and temperature. True to interrupt when data is ready for pressure and temperature.
+            field data_ready_int_enable 6,
+        },
+    },
+    /// Serial interface settings.
+    register IfConf {
+        address: 26,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Configure SPI Interface Mode for primary interface.
+            field spi 0 -> _ as
+                /// Configure SPI Interface Mode for primary interface.
+                enum SpiMode {
+                    /// SPI 4-wire mode.
+                    Spi4: 0,
+                    /// SPI 3-wire mode.
+                    Spi3: 1,
+                },
+            /// Whether to enable the I2C Watchdog timer, backed by NVM. True to enable.
+            field i2c_wdt_en 1,
+            /// Selects the timer period for the I2C Watchdog, backed by NVM.
+            field i2c_wdt_sel 2 -> _ as
+                /// The timeout period for the I2C Watchdog timer.
+                enum I2cWatchdogPeriod {
+                    /// I2C Watchdog timeout after 1.25 ms.
+                    Short: 0,
+                    /// I2C Watchdog timeout after 40 ms.
+                    Long: 1,
+                },
+        },
+    },
+    /// Enables or disables pressure and temperature measurements and the measurement mode.
+    register PwrCtrl {
+        address: 27,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Whether to enable pressure measurements. True to enable.
+            field pressure_enable 0,
+            /// Whether to enable temperature measurements. True to enable.
+            field temperature_enable 1,
+            /// Selects the measurement mode.
+            field mode 5:4 -> _ as
+                /// Selects the measurement mode.
+                enum MeasurementMode {
+                    /// Sleep mode. No measurements are performed.
+                    Sleep: 0,
+                    /// Forced mode. One measurement is performed, then the device returns to sleep mode.
+                    Forced: 1,
+                    /// Forced mode. Equivalent to Forced (`0b01`).
+                    Forced2: 2,
+                    /// Normal mode. Continuous measurements are performed at the selected sampling rate.
+                    Normal: 3,
+                },
+        },
+    },
+    /// Controls the oversampling settings for pressure and temperature measurements.
+    register Osr {
+        address: 28,
+        reset: 0x02,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Selects the oversampling rate for pressure measurements.
+            field pressure 2:0 -> _ as
+                /// Selects the oversampling rate for measurements.
+                enum Oversampling {
+                    /// No oversampling.
+                    X1: 0,
+                    /// x2 oversampling.
+                    X2: 1,
+                    /// x4 oversampling.
+                    X4: 2,
+                    /// x8 oversampling.
+                    X8: 3,
+                    /// x16 oversampling.
+                    X16: 4,
+                    /// x32 oversampling.
+                    X32: 5,
+                    Reserved: catch-all _,
+                },
+            /// Selects the oversampling rate for temperature measurements.
+            field temperature 5:3 -> _ as Oversampling,
+        },
+    },
+    /// Controls the output data rate by means of setting the subdivision/subsampling.
+    register Odr {
+        address: 29,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Subdivision factor for pressure and temperature measurement is `2^value`.
+            field odr_sel 4:0 -> _ as
+                /// The output data rate for pressure and temperature measurements: `2^value`.
+                enum OdrSel {
+                    /// 200 Hz, 5 ms sampling period, prescaler 1.
+                    Odr200: 0,
+                    /// 100 Hz, 10 ms sampling period, prescaler 2.
+                    Odr100: 1,
+                    /// 50 Hz, 20 ms sampling period, prescaler 4.
+                    Odr50: 2,
+                    /// 25 Hz, 40 ms sampling period, prescaler 8.
+                    Odr25: 3,
+                    /// 25/2 Hz, 80 ms sampling period, prescaler 16.
+                    Odr12p5: 4,
+                    /// 25/4 Hz, 160 ms sampling period, prescaler 32.
+                    Odr6p25: 5,
+                    /// 25/8 Hz, 320 ms sampling period, prescaler 64.
+                    Odr3p1: 6,
+                    /// 25/16 Hz, 640 ms sampling period, prescaler 128.
+                    Odr1p5: 7,
+                    /// 25/32 Hz, 1.280 s sampling period, prescaler 256.
+                    Odr0p78: 8,
+                    /// 25/64 Hz, 2.560 s sampling period, prescaler 512.
+                    Odr0p39: 9,
+                    /// 25/128 Hz, 5.120 s sampling period, prescaler 1024.
+                    Odr0p2: 10,
+                    /// 25/256 Hz, 10.24 s sampling period, prescaler 2048.
+                    Odr0p1: 11,
+                    /// 25/512 Hz, 20.48 s sampling period, prescaler 4096.
+                    Odr0p05: 12,
+                    /// 25/1024 Hz, 40.96 s sampling period, prescaler 8192.
+                    Odr0p02: 13,
+                    /// 25/2048 Hz, 81.92 s sampling period, prescaler 16384.
+                    Odr0p01: 14,
+                    /// 25/4096 Hz, 163.84 s sampling period, prescaler 32768.
+                    Odr0p006: 15,
+                    /// 25/8192 Hz, 327.68 s sampling period, prescaler 65536.
+                    Odr0p003: 16,
+                    /// 25/16384 Hz, 655.36 s sampling period, prescaler 131072.
+                    Odr0p0015: 17,
+                    Reserved: catch-all _,
+                },
+        },
+    },
+    /// IIR filter coefficients.
+    register Config {
+        address: 31,
+        fields: fieldset _ {
+            size-bytes: 1,
+
+            /// Filter coefficient for IIR filter.
+            field iir_filter 3:1 -> _ as
+                /// IIR filter coefficient selection.
+                enum IirFilterCoefficient {
+                    /// Filter coefficient is 0. Bypass mode.
+                    Coef0: 0,
+                    /// Filter coefficient is 1.
+                    Coef1: 1,
+                    /// Filter coefficient is 3.
+                    Coef3: 2,
+                    /// Filter coefficient is 7.
+                    Coef7: 3,
+                    /// Filter coefficient is 15.
+                    Coef15: 4,
+                    /// Filter coefficient is 31.
+                    Coef31: 5,
+                    /// Filter coefficient is 63.
+                    Coef63: 6,
+                    /// Filter coefficient is 127.
+                    Coef127: 7,
+                },
+        },
+    },
+    /// Calibration data for pressure and temperature compensation.
+    register CalibrationData {
+        address: 48,
+        fields: fieldset _ {
+            size-bytes: 22,
+
+            field nvm_par_t1 23:8,
+            field nvm_par_t2 39:24,
+            field nvm_par_t3 47:40 -> int,
+            field nvm_par_p1 63:48 -> int,
+            field nvm_par_p2 79:64 -> int,
+            field nvm_par_p3 87:80 -> int,
+            field nvm_par_p4 95:88 -> int,
+            field nvm_par_p5 111:96,
+            field nvm_par_p6 127:112,
+            field nvm_par_p7 135:128 -> int,
+            field nvm_par_p8 143:136 -> int,
+            field nvm_par_p9 159:144 -> int,
+            field nvm_par_p10 167:160 -> int,
+            field nvm_par_p11 175:168 -> int,
+        },
+    },
+    command Cmd {
+        address: 126,
+        fields-in: fieldset CmdFieldsIn {
+            size-bytes: 1,
+
+            /// Command to execute.
+            field cmd 7:0 -> _ as
+                /// Command to execute.
+                enum Command {
+                    /// No operation.
+                    Nop: 0,
+                    /// Clears all data in the FIFO. Does not change FIFO_CONFIG registers.
+                    FifoFlush: 176,
+                    /// Triggers a reset. All user configuration settings are overwritten with their default state.
+                    SoftReset: 182,
+                    Reserved: catch-all _,
+                },
+        },
+    },
+}

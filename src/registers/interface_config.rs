@@ -1,4 +1,4 @@
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// SPI mode selection.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,7 +58,7 @@ impl From<I2cWatchdogPeriod> for raw::I2CWatchdogPeriod {
     }
 }
 
-/// Serial interface configuration represented by [`field_sets::IfConf`].
+/// Serial interface configuration represented by [`IfConf`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InterfaceConfig {
@@ -96,8 +96,8 @@ impl Default for InterfaceConfig {
     }
 }
 
-impl From<field_sets::IfConf> for InterfaceConfig {
-    fn from(value: field_sets::IfConf) -> Self {
+impl From<raw::IfConf> for InterfaceConfig {
+    fn from(value: raw::IfConf) -> Self {
         Self {
             spi: value.spi().into(),
             i2c_watchdog_enabled: value.i_2_c_wdt_en(),
@@ -106,9 +106,9 @@ impl From<field_sets::IfConf> for InterfaceConfig {
     }
 }
 
-impl From<InterfaceConfig> for field_sets::IfConf {
+impl From<InterfaceConfig> for raw::IfConf {
     fn from(value: InterfaceConfig) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_spi(value.spi.into());
         register.set_i_2_c_wdt_en(value.i2c_watchdog_enabled);
         register.set_i_2_c_wdt_sel(value.i2c_watchdog_period.into());
@@ -145,7 +145,7 @@ mod tests {
             i2c_watchdog_period: I2cWatchdogPeriod::Short,
         };
         assert_eq!(
-            InterfaceConfig::from(field_sets::IfConf::from(interface)),
+            InterfaceConfig::from(raw::IfConf::from(interface)),
             interface
         );
     }

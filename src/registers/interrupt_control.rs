@@ -1,4 +1,4 @@
-use crate::raw::{self, field_sets};
+use crate::raw;
 
 /// Electrical output mode for the interrupt pin.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -58,7 +58,7 @@ impl From<InterruptLevel> for raw::IntLevel {
     }
 }
 
-/// Interrupt configuration represented by [`field_sets::IntCtrl`].
+/// Interrupt configuration represented by [`IntCtrl`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InterruptControl {
@@ -118,8 +118,8 @@ impl Default for InterruptControl {
     }
 }
 
-impl From<field_sets::IntCtrl> for InterruptControl {
-    fn from(value: field_sets::IntCtrl) -> Self {
+impl From<raw::IntCtrl> for InterruptControl {
+    fn from(value: raw::IntCtrl) -> Self {
         Self {
             output: value.int_open_drain().into(),
             level: value.int_level().into(),
@@ -132,9 +132,9 @@ impl From<field_sets::IntCtrl> for InterruptControl {
     }
 }
 
-impl From<InterruptControl> for field_sets::IntCtrl {
+impl From<InterruptControl> for raw::IntCtrl {
     fn from(value: InterruptControl) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_int_open_drain(value.output.into());
         register.set_int_level(value.level.into());
         register.set_int_latch(value.latched);
@@ -177,7 +177,7 @@ mod tests {
         };
 
         assert_eq!(
-            InterruptControl::from(field_sets::IntCtrl::from(interrupt_control)),
+            InterruptControl::from(raw::IntCtrl::from(interrupt_control)),
             interrupt_control
         );
     }

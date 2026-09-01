@@ -1,6 +1,6 @@
-use crate::raw::field_sets;
+use crate::raw;
 
-/// Sensor error conditions from [`field_sets::ErrReg`].
+/// Sensor error conditions from [`ErrReg`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ErrorStatus {
@@ -14,8 +14,8 @@ pub struct ErrorStatus {
     pub configuration: bool,
 }
 
-impl From<field_sets::ErrReg> for ErrorStatus {
-    fn from(value: field_sets::ErrReg) -> Self {
+impl From<raw::ErrReg> for ErrorStatus {
+    fn from(value: raw::ErrReg) -> Self {
         Self {
             fatal: value.fatal_err(),
             command: value.cmd_err(),
@@ -24,9 +24,9 @@ impl From<field_sets::ErrReg> for ErrorStatus {
     }
 }
 
-impl From<ErrorStatus> for field_sets::ErrReg {
+impl From<ErrorStatus> for raw::ErrReg {
     fn from(value: ErrorStatus) -> Self {
-        let mut register = Self::new_zero();
+        let mut register = Self::default();
         register.set_fatal_err(value.fatal);
         register.set_cmd_err(value.command);
         register.set_conf_err(value.configuration);
@@ -46,6 +46,6 @@ mod tests {
             configuration: true,
         };
 
-        assert_eq!(ErrorStatus::from(field_sets::ErrReg::from(errors)), errors);
+        assert_eq!(ErrorStatus::from(raw::ErrReg::from(errors)), errors);
     }
 }

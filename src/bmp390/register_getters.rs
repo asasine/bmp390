@@ -182,10 +182,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        bmp390::test_utils::interface,
-        raw::{self, field_sets},
-    };
+    use crate::{bmp390::test_utils::interface, raw};
     use core::assert_matches;
 
     #[test]
@@ -193,7 +190,7 @@ mod tests {
         let mut bmp390 = Bmp390::new(interface());
         const VALUE: u8 = 0b110;
         bmp390.device.osr().write(|w| {
-            let mut osr = field_sets::Osr::new();
+            let mut osr = raw::Osr::default();
             osr.set_pressure(raw::Oversampling::Reserved(VALUE));
             *w = osr;
         });
@@ -213,7 +210,7 @@ mod tests {
         let mut bmp390 = Bmp390::new(interface());
         const VALUE: u8 = 0x12;
         bmp390.device.odr().write(|w| {
-            let mut odr = field_sets::Odr::new();
+            let mut odr = raw::Odr::default();
             odr.set_odr_sel(raw::OdrSel::Reserved(VALUE));
             *w = odr;
         });
