@@ -60,11 +60,6 @@ fn register_op<'a>(register_address: &'a u8) -> Operation<'a> {
     Operation::Write(core::slice::from_ref(register_address))
 }
 
-/// The operations to write to a register, including selecting the register and writing the data.
-fn write_ops<'a>(register_address: &'a u8, data: &'a [u8]) -> [Operation<'a>; 2] {
-    [register_op(register_address), Operation::Write(data)]
-}
-
 /// The operations to read from a register, including selecting the register and reading the data.
 fn read_ops<'a>(register_address: &'a u8, data: &'a mut [u8]) -> [Operation<'a>; 2] {
     [register_op(register_address), Operation::Read(data)]
@@ -78,14 +73,19 @@ impl<B: i2c::ErrorType> RegisterInterfaceBase for I2cInterface<B> {
 impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
     async fn write_register(
         &mut self,
-        address: Self::AddressType,
+        mut address: Self::AddressType,
         data: &mut [u8],
         _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
-        let mut operations = write_ops(&address, data);
-        self.bus
-            .transaction(self.address.into(), &mut operations)
-            .await
+        for value in data.iter().copied() {
+            self.bus
+                .write(self.address.into(), &[address, value])
+                .await?;
+
+            address += 1;
+        }
+
+        Ok(())
     }
 
     async fn read_register(
@@ -104,12 +104,16 @@ impl<B: AsyncI2c> AsyncRegisterInterface for I2cInterface<B> {
 impl<B: I2c> RegisterInterface for I2cInterface<B> {
     fn write_register(
         &mut self,
-        address: Self::AddressType,
+        mut address: Self::AddressType,
         data: &mut [u8],
         _metadata: &FieldsetMetadata,
     ) -> Result<(), Self::Error> {
-        let mut operations = write_ops(&address, data);
-        self.bus.transaction(self.address.into(), &mut operations)
+        for value in data.iter().copied() {
+            self.bus.write(self.address.into(), &[address, value])?;
+            address += 1;
+        }
+
+        Ok(())
     }
 
     fn read_register(
@@ -120,5 +124,37 @@ impl<B: I2c> RegisterInterface for I2cInterface<B> {
     ) -> Result<(), Self::Error> {
         let mut operations = read_ops(&address, data);
         self.bus.transaction(self.address.into(), &mut operations)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    extern crate std;
+
+    use super::*;
+    use embedded_hal_mock::eh1::i2c::{Mock, Transaction};
+
+    #[test]
+    fn multi_byte_writes_use_register_data_pairs() {
+        let address = Sdo::Up;
+        let expectations = [
+            Transaction::write(address.into(), std::vec![0x15, 0x11]),
+            Transaction::write(address.into(), std::vec![0x16, 0x01]),
+        ];
+
+        let mut interface = I2cInterface {
+            bus: Mock::new(&expectations),
+            address,
+        };
+        let mut data = [0x11, 0x01];
+
+        RegisterInterface::write_register(
+            &mut interface,
+            0x15,
+            &mut data,
+            &FieldsetMetadata::new(),
+        )
+        .unwrap();
+        interface.bus.done();
     }
 }
