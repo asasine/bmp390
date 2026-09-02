@@ -87,7 +87,10 @@ impl ConfigurationBuilder {
         self
     }
 
-    /// Set the IIR filter coefficients.
+    /// Set the IIR low-pass filter coefficient.
+    ///
+    /// Larger coefficients smooth more noise but increase response latency. Filtering runs at the
+    /// output data rate before FIFO downsampling.
     pub fn iir_filter(mut self, config: impl Into<FilterCoefficient>) -> Self {
         self.iir_filter = Some(config.into());
         self

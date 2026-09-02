@@ -187,7 +187,7 @@ device Device {
             field pressure_enable 3,
             /// Whether to store temperature data in FIFO. True to store temperature data in FIFO.
             field temperature_enable 4,
-            /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+            /// Divides the FIFO storage rate relative to the output data rate by `2^subsampling`. Does not change the measurement rate.
             field subsampling 10:8,
             /// Selects the data source for pressure and temperature data.
             field data_select 12:11 -> _ as
@@ -369,13 +369,13 @@ device Device {
                 },
         },
     },
-    /// IIR filter coefficients.
+    /// First-order IIR low-pass filter configuration.
     register Config {
         address: 31,
         fields: fieldset _ {
             size-bytes: 1,
 
-            /// Filter coefficient for IIR filter.
+            /// IIR filter coefficient. Larger coefficients reduce noise but increase response latency.
             field iir_filter 3:1 -> _ as
                 /// IIR filter coefficient selection.
                 enum IirFilterCoefficient {

@@ -1,13 +1,21 @@
 use crate::raw;
 
-/// IIR filter coefficient.
+/// Coefficient controlling the sensor's first-order IIR low-pass filter.
+///
+/// As defined in BMP390 datasheet section 3.4.3, for filter coefficient `c`:
+/// `data_filtered = (data_filtered_old * c + data_ADC) / (c + 1)`.
+/// Larger coefficients suppress more short-term noise but add more response latency.
+/// [`Self::Coefficient0`] bypasses the filter.
+///
+/// The filter is updated at the configured output data rate. FIFO downsampling occurs afterward
+/// when [`super::FifoDataSelect::Filtered`] is selected; it does not reduce the filter update rate.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FilterCoefficient {
-    /// Bypass mode.
+    /// Bypass filtering (`c = 0`).
     Coefficient0,
 
-    /// Coefficient 1.
+    /// Light smoothing (`c = 1`).
     Coefficient1,
 
     /// Coefficient 3.
@@ -32,6 +40,20 @@ pub enum FilterCoefficient {
 impl FilterCoefficient {
     /// The default filter coefficient: bypass mode.
     pub const DEFAULT: Self = Self::Coefficient0;
+
+    /// Return the numeric coefficient used by the IIR filter.
+    pub const fn coefficient(self) -> u8 {
+        match self {
+            Self::Coefficient0 => 0,
+            Self::Coefficient1 => 1,
+            Self::Coefficient3 => 3,
+            Self::Coefficient7 => 7,
+            Self::Coefficient15 => 15,
+            Self::Coefficient31 => 31,
+            Self::Coefficient63 => 63,
+            Self::Coefficient127 => 127,
+        }
+    }
 }
 
 impl Default for FilterCoefficient {
@@ -118,5 +140,13 @@ mod tests {
                 coefficient,
             );
         }
+    }
+
+    #[test]
+    fn numeric_coefficients_match_variants() {
+        assert_eq!(
+            ALL.map(FilterCoefficient::coefficient),
+            [0, 1, 3, 7, 15, 31, 63, 127],
+        );
     }
 }

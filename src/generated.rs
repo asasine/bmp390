@@ -431,7 +431,7 @@ impl<I> Device<I> {
         let address = self.base_address + 29;
         ::device_driver::RegisterOperation::new(self, address as u8, Odr::default)
     }
-    /// IIR filter coefficients.
+    /// First-order IIR low-pass filter configuration.
     ///
     /// Register operation:
     /// - Address: `31`
@@ -565,14 +565,6 @@ impl core::fmt::Debug for CmdFieldsIn {
         let mut d = f.debug_struct("CmdFieldsIn");
         d.field("cmd", &self.cmd());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for CmdFieldsIn {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "CmdFieldsIn {{ ");
-        defmt::write!(f, "cmd: {}, ", & self.cmd());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for CmdFieldsIn {
@@ -1081,27 +1073,6 @@ impl core::fmt::Debug for CalibrationData {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for CalibrationData {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "CalibrationData {{ ");
-        defmt::write!(f, "nvm_par_t_1: {=u16}, ", & self.nvm_par_t_1());
-        defmt::write!(f, "nvm_par_t_2: {=u16}, ", & self.nvm_par_t_2());
-        defmt::write!(f, "nvm_par_t_3: {=i8}, ", & self.nvm_par_t_3());
-        defmt::write!(f, "nvm_par_p_1: {=i16}, ", & self.nvm_par_p_1());
-        defmt::write!(f, "nvm_par_p_2: {=i16}, ", & self.nvm_par_p_2());
-        defmt::write!(f, "nvm_par_p_3: {=i8}, ", & self.nvm_par_p_3());
-        defmt::write!(f, "nvm_par_p_4: {=i8}, ", & self.nvm_par_p_4());
-        defmt::write!(f, "nvm_par_p_5: {=u16}, ", & self.nvm_par_p_5());
-        defmt::write!(f, "nvm_par_p_6: {=u16}, ", & self.nvm_par_p_6());
-        defmt::write!(f, "nvm_par_p_7: {=i8}, ", & self.nvm_par_p_7());
-        defmt::write!(f, "nvm_par_p_8: {=i8}, ", & self.nvm_par_p_8());
-        defmt::write!(f, "nvm_par_p_9: {=i16}, ", & self.nvm_par_p_9());
-        defmt::write!(f, "nvm_par_p_10: {=i8}, ", & self.nvm_par_p_10());
-        defmt::write!(f, "nvm_par_p_11: {=i8}, ", & self.nvm_par_p_11());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for CalibrationData {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -1168,7 +1139,7 @@ unsafe impl ::device_driver::Fieldset for Config {
 impl Config {
     /// `3:1` - Read the `iir_filter` field.
     ///
-    /// Filter coefficient for IIR filter.
+    /// IIR filter coefficient. Larger coefficients reduce noise but increase response latency.
     #[must_use]
     pub fn iir_filter(&self) -> IirFilterCoefficient {
         let start = 1;
@@ -1183,7 +1154,7 @@ impl Config {
     }
     /// `3:1` - Set the `iir_filter` field.
     ///
-    /// Filter coefficient for IIR filter.
+    /// IIR filter coefficient. Larger coefficients reduce noise but increase response latency.
     pub fn set_iir_filter(&mut self, value: IirFilterCoefficient) {
         let start = 1;
         let end = 3;
@@ -1216,14 +1187,6 @@ impl core::fmt::Debug for Config {
         let mut d = f.debug_struct("Config");
         d.field("iir_filter", &self.iir_filter());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for Config {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Config {{ ");
-        defmt::write!(f, "iir_filter: {}, ", & self.iir_filter());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for Config {
@@ -1340,14 +1303,6 @@ impl core::fmt::Debug for Odr {
         let mut d = f.debug_struct("Odr");
         d.field("odr_sel", &self.odr_sel());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for Odr {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Odr {{ ");
-        defmt::write!(f, "odr_sel: {}, ", & self.odr_sel());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for Odr {
@@ -1494,15 +1449,6 @@ impl core::fmt::Debug for Osr {
         d.field("pressure", &self.pressure());
         d.field("temperature", &self.temperature());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for Osr {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Osr {{ ");
-        defmt::write!(f, "pressure: {}, ", & self.pressure());
-        defmt::write!(f, "temperature: {}, ", & self.temperature());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for Osr {
@@ -1679,16 +1625,6 @@ impl core::fmt::Debug for PwrCtrl {
         d.field("temperature_enable", &self.temperature_enable());
         d.field("mode", &self.mode());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for PwrCtrl {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "PwrCtrl {{ ");
-        defmt::write!(f, "pressure_enable: {=bool}, ", & self.pressure_enable());
-        defmt::write!(f, "temperature_enable: {=bool}, ", & self.temperature_enable());
-        defmt::write!(f, "mode: {}, ", & self.mode());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for PwrCtrl {
@@ -1869,16 +1805,6 @@ impl core::fmt::Debug for IfConf {
         d.field("i_2_c_wdt_en", &self.i_2_c_wdt_en());
         d.field("i_2_c_wdt_sel", &self.i_2_c_wdt_sel());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for IfConf {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "IfConf {{ ");
-        defmt::write!(f, "spi: {}, ", & self.spi());
-        defmt::write!(f, "i_2_c_wdt_en: {=bool}, ", & self.i_2_c_wdt_en());
-        defmt::write!(f, "i_2_c_wdt_sel: {}, ", & self.i_2_c_wdt_sel());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for IfConf {
@@ -2175,26 +2101,6 @@ impl core::fmt::Debug for IntCtrl {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for IntCtrl {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "IntCtrl {{ ");
-        defmt::write!(f, "int_open_drain: {}, ", & self.int_open_drain());
-        defmt::write!(f, "int_level: {}, ", & self.int_level());
-        defmt::write!(f, "int_latch: {=bool}, ", & self.int_latch());
-        defmt::write!(
-            f, "fifo_watermark_int_enable: {=bool}, ", & self.fifo_watermark_int_enable()
-        );
-        defmt::write!(
-            f, "fifo_full_int_enable: {=bool}, ", & self.fifo_full_int_enable()
-        );
-        defmt::write!(f, "int_ds: {=bool}, ", & self.int_ds());
-        defmt::write!(
-            f, "data_ready_int_enable: {=bool}, ", & self.data_ready_int_enable()
-        );
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for IntCtrl {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -2336,7 +2242,7 @@ impl FifoConfig {
     }
     /// `10:8` - Read the `subsampling` field.
     ///
-    /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+    /// Divides the FIFO storage rate relative to the output data rate by `2^subsampling`. Does not change the measurement rate.
     #[must_use]
     pub fn subsampling(&self) -> u8 {
         let start = 8;
@@ -2436,7 +2342,7 @@ impl FifoConfig {
     }
     /// `10:8` - Set the `subsampling` field.
     ///
-    /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+    /// Divides the FIFO storage rate relative to the output data rate by `2^subsampling`. Does not change the measurement rate.
     pub fn set_subsampling(&mut self, value: u8) {
         let start = 8;
         let end = 10;
@@ -2489,20 +2395,6 @@ impl core::fmt::Debug for FifoConfig {
         d.field("subsampling", &self.subsampling());
         d.field("data_select", &self.data_select());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for FifoConfig {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "FifoConfig {{ ");
-        defmt::write!(f, "mode: {}, ", & self.mode());
-        defmt::write!(f, "stop_on_full: {=bool}, ", & self.stop_on_full());
-        defmt::write!(f, "time_enable: {=bool}, ", & self.time_enable());
-        defmt::write!(f, "pressure_enable: {=bool}, ", & self.pressure_enable());
-        defmt::write!(f, "temperature_enable: {=bool}, ", & self.temperature_enable());
-        defmt::write!(f, "subsampling: {=u8}, ", & self.subsampling());
-        defmt::write!(f, "data_select: {}, ", & self.data_select());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for FifoConfig {
@@ -2590,13 +2482,6 @@ impl core::fmt::Debug for FifoWatermark {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for FifoWatermark {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "FifoWatermark {{ ");
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for FifoWatermark {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -2680,13 +2565,6 @@ impl core::fmt::Debug for FifoData {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
         let mut d = f.debug_struct("FifoData");
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for FifoData {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "FifoData {{ ");
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for FifoData {
@@ -2803,14 +2681,6 @@ impl core::fmt::Debug for FifoLength {
         let mut d = f.debug_struct("FifoLength");
         d.field("value", &self.value());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for FifoLength {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "FifoLength {{ ");
-        defmt::write!(f, "value: {=u16}, ", & self.value());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for FifoLength {
@@ -2989,16 +2859,6 @@ impl core::fmt::Debug for IntStatus {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for IntStatus {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "IntStatus {{ ");
-        defmt::write!(f, "fifo_full_watermark: {=bool}, ", & self.fifo_full_watermark());
-        defmt::write!(f, "fifo_full: {=bool}, ", & self.fifo_full());
-        defmt::write!(f, "data_ready: {=bool}, ", & self.data_ready());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for IntStatus {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -3143,15 +3003,6 @@ impl core::fmt::Debug for Event {
         d.field("por_detected", &self.por_detected());
         d.field("itf_act_pt", &self.itf_act_pt());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for Event {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Event {{ ");
-        defmt::write!(f, "por_detected: {=bool}, ", & self.por_detected());
-        defmt::write!(f, "itf_act_pt: {=bool}, ", & self.itf_act_pt());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for Event {
@@ -3300,15 +3151,6 @@ impl core::fmt::Debug for Data {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for Data {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Data {{ ");
-        defmt::write!(f, "pressure: {=u32}, ", & self.pressure());
-        defmt::write!(f, "temperature: {=u32}, ", & self.temperature());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for Data {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -3423,14 +3265,6 @@ impl core::fmt::Debug for SensorTime {
         let mut d = f.debug_struct("SensorTime");
         d.field("value", &self.value());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for SensorTime {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "SensorTime {{ ");
-        defmt::write!(f, "value: {=u32}, ", & self.value());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for SensorTime {
@@ -3549,14 +3383,6 @@ impl core::fmt::Debug for TemperatureData {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for TemperatureData {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "TemperatureData {{ ");
-        defmt::write!(f, "value: {=u32}, ", & self.value());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for TemperatureData {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -3671,14 +3497,6 @@ impl core::fmt::Debug for PressureData {
         let mut d = f.debug_struct("PressureData");
         d.field("value", &self.value());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for PressureData {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "PressureData {{ ");
-        defmt::write!(f, "value: {=u32}, ", & self.value());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for PressureData {
@@ -3857,18 +3675,6 @@ impl core::fmt::Debug for Status {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for Status {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "Status {{ ");
-        defmt::write!(f, "command_ready: {}, ", & self.command_ready());
-        defmt::write!(f, "data_ready_pressure: {=bool}, ", & self.data_ready_pressure());
-        defmt::write!(
-            f, "data_ready_temperature: {=bool}, ", & self.data_ready_temperature()
-        );
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for Status {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -4045,16 +3851,6 @@ impl core::fmt::Debug for ErrReg {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for ErrReg {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "ErrReg {{ ");
-        defmt::write!(f, "fatal_err: {=bool}, ", & self.fatal_err());
-        defmt::write!(f, "cmd_err: {=bool}, ", & self.cmd_err());
-        defmt::write!(f, "conf_err: {=bool}, ", & self.conf_err());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for ErrReg {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -4169,14 +3965,6 @@ impl core::fmt::Debug for RevId {
         let mut d = f.debug_struct("RevId");
         d.field("value", &self.value());
         d.finish()
-    }
-}
-#[cfg(feature = "defmt")]
-impl defmt::Format for RevId {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "RevId {{ ");
-        defmt::write!(f, "value: {=u8}, ", & self.value());
-        defmt::write!(f, "}}");
     }
 }
 impl core::ops::BitAnd for RevId {
@@ -4295,14 +4083,6 @@ impl core::fmt::Debug for ChipId {
         d.finish()
     }
 }
-#[cfg(feature = "defmt")]
-impl defmt::Format for ChipId {
-    fn format(&self, f: defmt::Formatter) {
-        defmt::write!(f, "ChipId {{ ");
-        defmt::write!(f, "value: {=u8}, ", & self.value());
-        defmt::write!(f, "}}");
-    }
-}
 impl core::ops::BitAnd for ChipId {
     type Output = Self;
     fn bitand(mut self, rhs: Self) -> Self::Output {
@@ -4357,7 +4137,6 @@ impl core::ops::Not for ChipId {
 /// Command to execute.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Command {
     /// No operation.
     Nop = 0,
@@ -4398,7 +4177,6 @@ impl ::device_driver::EnumIndex for Command {
 /// IIR filter coefficient selection.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum IirFilterCoefficient {
     /// Filter coefficient is 0. Bypass mode.
     Coef0 = 0,
@@ -4463,7 +4241,6 @@ impl ::device_driver::EnumIndex for IirFilterCoefficient {
 /// The output data rate for pressure and temperature measurements: `2^value`.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OdrSel {
     /// 200 Hz, 5 ms sampling period, prescaler 1.
     Odr200 = 0,
@@ -4578,7 +4355,6 @@ impl ::device_driver::EnumIndex for OdrSel {
 /// Selects the oversampling rate for measurements.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Oversampling {
     /// No oversampling.
     X1 = 0,
@@ -4631,7 +4407,6 @@ impl ::device_driver::EnumIndex for Oversampling {
 /// Selects the measurement mode.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum MeasurementMode {
     /// Sleep mode. No measurements are performed.
     Sleep = 0,
@@ -4681,7 +4456,6 @@ impl ::device_driver::EnumIndex for MeasurementMode {
 #[doc(alias = "I2cWatchdogPeriod")]
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum I2CWatchdogPeriod {
     /// I2C Watchdog timeout after 1.25 ms.
     Short = 0,
@@ -4722,7 +4496,6 @@ impl ::device_driver::EnumIndex for I2CWatchdogPeriod {
 /// Configure SPI Interface Mode for primary interface.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SpiMode {
     /// SPI 4-wire mode.
     Spi4 = 0,
@@ -4763,7 +4536,6 @@ impl ::device_driver::EnumIndex for SpiMode {
 /// Configures the INT pin as active high or active low.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum IntLevel {
     /// INT pin is active low.
     ActiveLow = 0,
@@ -4804,7 +4576,6 @@ impl ::device_driver::EnumIndex for IntLevel {
 /// Configures the INT pin as push-pull or open-drain.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum IntOpenDrain {
     /// INT pin is push-pull.
     PushPull = 0,
@@ -4845,7 +4616,6 @@ impl ::device_driver::EnumIndex for IntOpenDrain {
 /// Selects the data source for pressure and temperature data.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FifoDataSelect {
     /// Unfiltered data is written to FIFO (compensated or uncompensated).
     Unfiltered = 0,
@@ -4882,7 +4652,6 @@ impl ::device_driver::EnumIndex for FifoDataSelect {
 /// Whether FIFO is enabled or disabled.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FifoMode {
     /// FIFO is disabled.
     Disabled = 0,
@@ -4923,7 +4692,6 @@ impl ::device_driver::EnumIndex for FifoMode {
 /// CMD decoder status.
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum CommandStatus {
     /// Command execution in progress.
     InProgress = 0,
