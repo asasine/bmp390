@@ -4,10 +4,15 @@ use crate::raw;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum FifoDataSelect {
-    /// Unfiltered data is written to the FIFO.
+    /// Write unfiltered measurements to the FIFO.
+    ///
+    /// The configured IIR filter does not affect FIFO samples in this mode.
     Unfiltered,
 
-    /// Filtered data is written to the FIFO.
+    /// Write IIR-filtered measurements to the FIFO.
+    ///
+    /// The IIR filter is updated at the sensor output data rate before FIFO downsampling is
+    /// applied.
     Filtered,
 }
 

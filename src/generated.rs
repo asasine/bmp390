@@ -431,7 +431,7 @@ impl<I> Device<I> {
         let address = self.base_address + 29;
         ::device_driver::RegisterOperation::new(self, address as u8, Odr::default)
     }
-    /// IIR filter coefficients.
+    /// First-order IIR low-pass filter configuration.
     ///
     /// Register operation:
     /// - Address: `31`
@@ -1168,7 +1168,7 @@ unsafe impl ::device_driver::Fieldset for Config {
 impl Config {
     /// `3:1` - Read the `iir_filter` field.
     ///
-    /// Filter coefficient for IIR filter.
+    /// IIR filter coefficient. Larger coefficients reduce noise but increase response latency.
     #[must_use]
     pub fn iir_filter(&self) -> IirFilterCoefficient {
         let start = 1;
@@ -1183,7 +1183,7 @@ impl Config {
     }
     /// `3:1` - Set the `iir_filter` field.
     ///
-    /// Filter coefficient for IIR filter.
+    /// IIR filter coefficient. Larger coefficients reduce noise but increase response latency.
     pub fn set_iir_filter(&mut self, value: IirFilterCoefficient) {
         let start = 1;
         let end = 3;
@@ -2336,7 +2336,7 @@ impl FifoConfig {
     }
     /// `10:8` - Read the `subsampling` field.
     ///
-    /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+    /// Divides the FIFO storage rate relative to the output data rate by `2^subsampling`. Does not change the measurement rate.
     #[must_use]
     pub fn subsampling(&self) -> u8 {
         let start = 8;
@@ -2436,7 +2436,7 @@ impl FifoConfig {
     }
     /// `10:8` - Set the `subsampling` field.
     ///
-    /// FIFO downsampling selection for pressure and temperature data. Factor is `2^sampling`.
+    /// Divides the FIFO storage rate relative to the output data rate by `2^subsampling`. Does not change the measurement rate.
     pub fn set_subsampling(&mut self, value: u8) {
         let start = 8;
         let end = 10;

@@ -1,9 +1,9 @@
 mod fifo_data_select;
-mod fifo_subsampling;
+mod fifo_downsampling;
 mod fifo_watermark;
 
 pub use fifo_data_select::FifoDataSelect;
-pub use fifo_subsampling::FifoSubsampling;
+pub use fifo_downsampling::FifoDownsampling;
 pub use fifo_watermark::FifoWatermark;
 
 use crate::raw;
@@ -37,7 +37,30 @@ impl From<FifoMode> for raw::FifoMode {
     }
 }
 
-/// FIFO configuration represented by [`FifoConfig`].
+/// FIFO configuration.
+///
+/// FIFO downsampling is independent of the sensor's output data rate (ODR). For example, an ODR
+/// of 50 Hz and [`FifoDownsampling::Every8`] stores FIFO samples at 6.25 Hz while measurements and
+/// data-ready events continue at 50 Hz. If [`FifoDataSelect::Filtered`] is selected, the IIR filter
+/// is updated at 50 Hz and its output is then downsampled for FIFO storage.
+///
+/// ```
+/// use bmp390::{
+///     ConfigurationBuilder,
+///     registers::{
+///         FifoConfig, FifoDataSelect, FifoDownsampling, FilterCoefficient, OutputDataRate,
+///     },
+/// };
+///
+/// let configuration = ConfigurationBuilder::new()
+///     .output_data_rate(OutputDataRate::Hz50)
+///     .iir_filter(FilterCoefficient::Coefficient15)
+///     .fifo_config(FifoConfig {
+///         downsampling: FifoDownsampling::Every8,
+///         data_select: FifoDataSelect::Filtered,
+///         ..FifoConfig::default()
+///     });
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct FifoConfig {
@@ -56,8 +79,10 @@ pub struct FifoConfig {
     /// Store temperature data in the FIFO.
     pub temperature_enable: bool,
 
-    /// FIFO downsampling selection. The effective period is `2^subsampling`.
-    pub subsampling: FifoSubsampling,
+    /// How often output samples are written to the FIFO.
+    ///
+    /// This does not change the measurement rate or reduce sensor power consumption.
+    pub downsampling: FifoDownsampling,
 
     /// Data source used for FIFO samples.
     pub data_select: FifoDataSelect,
@@ -69,16 +94,16 @@ impl FifoConfig {
     /// - FIFO is disabled.
     /// - Stop on full is enabled.
     /// - Time, pressure, and temperature are disabled.
-    /// - Subsampling is set to 0.
-    /// - Filtered data source.
+    /// - Every fourth sample is stored.
+    /// - Unfiltered data source.
     pub const DEFAULT: Self = Self {
         mode: FifoMode::Disabled,
         stop_on_full: true,
         time_enable: false,
         pressure_enable: false,
         temperature_enable: false,
-        subsampling: FifoSubsampling::try_new(0).unwrap(),
-        data_select: FifoDataSelect::Filtered,
+        downsampling: FifoDownsampling::DEFAULT,
+        data_select: FifoDataSelect::Unfiltered,
     };
 }
 
@@ -88,8 +113,8 @@ impl Default for FifoConfig {
     /// - FIFO is disabled.
     /// - Stop on full is enabled.
     /// - Time, pressure, and temperature are disabled.
-    /// - Subsampling is set to 0.
-    /// - Filtered data source.
+    /// - Every fourth sample is stored.
+    /// - Unfiltered data source.
     fn default() -> Self {
         Self::DEFAULT
     }
@@ -103,7 +128,7 @@ impl From<raw::FifoConfig> for FifoConfig {
             time_enable: value.time_enable(),
             pressure_enable: value.pressure_enable(),
             temperature_enable: value.temperature_enable(),
-            subsampling: value.subsampling().into(),
+            downsampling: FifoDownsampling::from_register_exponent(value.subsampling()),
             data_select: value.data_select().into(),
         }
     }
@@ -117,7 +142,7 @@ impl From<FifoConfig> for raw::FifoConfig {
         register.set_time_enable(value.time_enable);
         register.set_pressure_enable(value.pressure_enable);
         register.set_temperature_enable(value.temperature_enable);
-        register.set_subsampling(value.subsampling.value());
+        register.set_subsampling(value.downsampling.exponent());
         register.set_data_select(value.data_select.into());
         register
     }
@@ -142,10 +167,18 @@ mod tests {
             time_enable: false,
             pressure_enable: true,
             temperature_enable: true,
-            subsampling: FifoSubsampling::try_new(2).unwrap(),
+            downsampling: FifoDownsampling::Every4,
             data_select: FifoDataSelect::Filtered,
         };
 
-        assert_eq!(FifoConfig::from(FifoConfig::from(fifo)), fifo);
+        assert_eq!(FifoConfig::from(raw::FifoConfig::from(fifo)), fifo);
+    }
+
+    #[test]
+    fn default_matches_register_reset_value() {
+        assert_eq!(
+            FifoConfig::from(raw::FifoConfig::from([0x02, 0x02])),
+            FifoConfig::DEFAULT
+        );
     }
 }

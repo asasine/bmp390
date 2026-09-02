@@ -24,7 +24,9 @@ pub use calibration::Coefficients;
 pub use command::{Command, CommandRegister};
 pub use error_status::ErrorStatus;
 pub use event::Event;
-pub use fifo_config::{FifoConfig, FifoDataSelect, FifoMode, FifoSubsampling, FifoWatermark};
+pub use fifo_config::{
+    FifoConfig, FifoDataSelect, FifoDownsampling, FifoMode, FifoWatermark,
+};
 pub use iir_filter_config::FilterCoefficient;
 pub use interface_config::{I2cWatchdogPeriod, InterfaceConfig, SpiMode};
 pub use interrupt_control::{InterruptControl, InterruptLevel, InterruptOutput};
@@ -49,7 +51,7 @@ pub struct ReservedValueError {
 }
 
 impl ReservedValueError {
-    const fn new(field: &'static str, value: u8) -> Self {
+    pub(crate) const fn new(field: &'static str, value: u8) -> Self {
         Self { field, value }
     }
 }
