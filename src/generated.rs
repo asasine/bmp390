@@ -52,6 +52,8 @@ impl<I> Device<I> {
         callback(12 + 0 * 0, "sensor_time", reg.into());
         let reg = self.data().read()?;
         callback(4 + 0 * 0, "data", reg.into());
+        let reg = self.data_with_interrupt_status().read()?;
+        callback(4 + 0 * 0, "data_with_interrupt_status", reg.into());
         let reg = self.event().read()?;
         callback(16 + 0 * 0, "event", reg.into());
         let reg = self.int_status().read()?;
@@ -118,6 +120,8 @@ impl<I> Device<I> {
         callback(12 + 0 * 0, "sensor_time", reg.into());
         let reg = self.data().read_async().await?;
         callback(4 + 0 * 0, "data", reg.into());
+        let reg = self.data_with_interrupt_status().read_async().await?;
+        callback(4 + 0 * 0, "data_with_interrupt_status", reg.into());
         let reg = self.event().read_async().await?;
         callback(16 + 0 * 0, "event", reg.into());
         let reg = self.int_status().read_async().await?;
@@ -297,6 +301,25 @@ impl<I> Device<I> {
             field_sets::Data,
             ::device_driver::RW,
         >::new(self.interface(), address as u8, field_sets::Data::new)
+    }
+    /// Pressure and temperature data followed by the intervening register range and interrupt status in one burst read.
+    pub fn data_with_interrupt_status(
+        &mut self,
+    ) -> ::device_driver::RegisterOperation<
+        '_,
+        I,
+        u8,
+        field_sets::DataWithInterruptStatus,
+        ::device_driver::RW,
+    > {
+        let address = self.base_address + 4;
+        ::device_driver::RegisterOperation::<
+            '_,
+            I,
+            u8,
+            field_sets::DataWithInterruptStatus,
+            ::device_driver::RW,
+        >::new(self.interface(), address as u8, field_sets::DataWithInterruptStatus::new)
     }
     /// Sensor status flags.
     pub fn event(
@@ -1714,6 +1737,188 @@ pub mod field_sets {
         }
     }
     impl core::ops::Not for Data {
+        type Output = Self;
+        fn not(mut self) -> Self::Output {
+            for val in self.bits.iter_mut() {
+                *val = !*val;
+            }
+            self
+        }
+    }
+    /// Pressure and temperature data followed by the intervening register range and interrupt status in one burst read.
+    #[derive(Copy, Clone, Eq, PartialEq)]
+    pub struct DataWithInterruptStatus {
+        /// The internal bits
+        bits: [u8; 14],
+    }
+    impl ::device_driver::FieldSet for DataWithInterruptStatus {
+        const SIZE_BITS: u32 = 112;
+        fn new_with_zero() -> Self {
+            Self::new_zero()
+        }
+        fn get_inner_buffer(&self) -> &[u8] {
+            &self.bits
+        }
+        fn get_inner_buffer_mut(&mut self) -> &mut [u8] {
+            &mut self.bits
+        }
+    }
+    impl DataWithInterruptStatus {
+        /// Create a new instance, loaded with the reset value (if any)
+        pub const fn new() -> Self {
+            Self {
+                bits: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            }
+        }
+        /// Create a new instance, loaded with all zeroes
+        pub const fn new_zero() -> Self {
+            Self { bits: [0; 14] }
+        }
+        ///Read the `pressure` field of the register.
+        ///
+        /// 24-bit pressure data.
+        pub fn pressure(&self) -> u32 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 0, 24)
+            };
+            raw
+        }
+        ///Read the `temperature` field of the register.
+        ///
+        /// 24-bit temperature data.
+        pub fn temperature(&self) -> u32 {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 24, 48)
+            };
+            raw
+        }
+        ///Read the `data_ready` field of the register.
+        ///
+        /// Data-ready interrupt status from bit 3 of the INT_STATUS register at the end of the burst.
+        pub fn data_ready(&self) -> bool {
+            let raw = unsafe {
+                ::device_driver::ops::load_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(&self.bits, 107, 108)
+            };
+            raw > 0
+        }
+        ///Write the `pressure` field of the register.
+        ///
+        /// 24-bit pressure data.
+        pub fn set_pressure(&mut self, value: u32) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(raw, 0, 24, &mut self.bits)
+            };
+        }
+        ///Write the `temperature` field of the register.
+        ///
+        /// 24-bit temperature data.
+        pub fn set_temperature(&mut self, value: u32) {
+            let raw = value;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u32,
+                    ::device_driver::ops::LE,
+                >(raw, 24, 48, &mut self.bits)
+            };
+        }
+        ///Write the `data_ready` field of the register.
+        ///
+        /// Data-ready interrupt status from bit 3 of the INT_STATUS register at the end of the burst.
+        pub fn set_data_ready(&mut self, value: bool) {
+            let raw = value as _;
+            unsafe {
+                ::device_driver::ops::store_lsb0::<
+                    u8,
+                    ::device_driver::ops::LE,
+                >(raw, 107, 108, &mut self.bits)
+            };
+        }
+    }
+    impl From<[u8; 14]> for DataWithInterruptStatus {
+        fn from(bits: [u8; 14]) -> Self {
+            Self { bits }
+        }
+    }
+    impl From<DataWithInterruptStatus> for [u8; 14] {
+        fn from(val: DataWithInterruptStatus) -> Self {
+            val.bits
+        }
+    }
+    impl core::fmt::Debug for DataWithInterruptStatus {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> Result<(), core::fmt::Error> {
+            let mut d = f.debug_struct("DataWithInterruptStatus");
+            d.field("pressure", &self.pressure());
+            d.field("temperature", &self.temperature());
+            d.field("data_ready", &self.data_ready());
+            d.finish()
+        }
+    }
+    #[cfg(feature = "defmt")]
+    impl defmt::Format for DataWithInterruptStatus {
+        fn format(&self, f: defmt::Formatter) {
+            defmt::write!(f, "DataWithInterruptStatus {{ ");
+            defmt::write!(f, "pressure: {=u32}, ", & self.pressure());
+            defmt::write!(f, "temperature: {=u32}, ", & self.temperature());
+            defmt::write!(f, "data_ready: {=bool}, ", & self.data_ready());
+            defmt::write!(f, "}}");
+        }
+    }
+    impl core::ops::BitAnd for DataWithInterruptStatus {
+        type Output = Self;
+        fn bitand(mut self, rhs: Self) -> Self::Output {
+            self &= rhs;
+            self
+        }
+    }
+    impl core::ops::BitAndAssign for DataWithInterruptStatus {
+        fn bitand_assign(&mut self, rhs: Self) {
+            for (l, r) in self.bits.iter_mut().zip(&rhs.bits) {
+                *l &= *r;
+            }
+        }
+    }
+    impl core::ops::BitOr for DataWithInterruptStatus {
+        type Output = Self;
+        fn bitor(mut self, rhs: Self) -> Self::Output {
+            self |= rhs;
+            self
+        }
+    }
+    impl core::ops::BitOrAssign for DataWithInterruptStatus {
+        fn bitor_assign(&mut self, rhs: Self) {
+            for (l, r) in self.bits.iter_mut().zip(&rhs.bits) {
+                *l |= *r;
+            }
+        }
+    }
+    impl core::ops::BitXor for DataWithInterruptStatus {
+        type Output = Self;
+        fn bitxor(mut self, rhs: Self) -> Self::Output {
+            self ^= rhs;
+            self
+        }
+    }
+    impl core::ops::BitXorAssign for DataWithInterruptStatus {
+        fn bitxor_assign(&mut self, rhs: Self) {
+            for (l, r) in self.bits.iter_mut().zip(&rhs.bits) {
+                *l ^= *r;
+            }
+        }
+    }
+    impl core::ops::Not for DataWithInterruptStatus {
         type Output = Self;
         fn not(mut self) -> Self::Output {
             for val in self.bits.iter_mut() {
@@ -4322,6 +4527,8 @@ pub mod field_sets {
         SensorTime(SensorTime),
         /// Pressure and temperature data, split and stored in six consecutive registers. Reading in one burst read ensures that the pressure and temperature data are from the same measurement sampling.
         Data(Data),
+        /// Pressure and temperature data followed by the intervening register range and interrupt status in one burst read.
+        DataWithInterruptStatus(DataWithInterruptStatus),
         /// Sensor status flags.
         Event(Event),
         /// Interrupt status. Cleared after reading.
@@ -4361,6 +4568,7 @@ pub mod field_sets {
                 Self::TemperatureData(val) => core::fmt::Debug::fmt(val, f),
                 Self::SensorTime(val) => core::fmt::Debug::fmt(val, f),
                 Self::Data(val) => core::fmt::Debug::fmt(val, f),
+                Self::DataWithInterruptStatus(val) => core::fmt::Debug::fmt(val, f),
                 Self::Event(val) => core::fmt::Debug::fmt(val, f),
                 Self::IntStatus(val) => core::fmt::Debug::fmt(val, f),
                 Self::FifoLength(val) => core::fmt::Debug::fmt(val, f),
@@ -4392,6 +4600,7 @@ pub mod field_sets {
                 Self::TemperatureData(val) => defmt::Format::format(val, f),
                 Self::SensorTime(val) => defmt::Format::format(val, f),
                 Self::Data(val) => defmt::Format::format(val, f),
+                Self::DataWithInterruptStatus(val) => defmt::Format::format(val, f),
                 Self::Event(val) => defmt::Format::format(val, f),
                 Self::IntStatus(val) => defmt::Format::format(val, f),
                 Self::FifoLength(val) => defmt::Format::format(val, f),
@@ -4447,6 +4656,11 @@ pub mod field_sets {
     impl From<Data> for FieldSetValue {
         fn from(val: Data) -> Self {
             Self::Data(val)
+        }
+    }
+    impl From<DataWithInterruptStatus> for FieldSetValue {
+        fn from(val: DataWithInterruptStatus) -> Self {
+            Self::DataWithInterruptStatus(val)
         }
     }
     impl From<Event> for FieldSetValue {

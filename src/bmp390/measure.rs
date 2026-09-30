@@ -66,6 +66,36 @@ where
         })
     }
 
+    /// Read and return a measurement only when the data-ready interrupt is active.
+    ///
+    /// Pressure, temperature, and interrupt status are acquired in one contiguous
+    /// 14-byte read from address `0x04` through `0x11`. This range also spans the
+    /// sensor-time, reserved, and event registers; reading the event register clears
+    /// its flags.
+    ///
+    /// Returns `Ok(None)` without loading calibration coefficients or compensating
+    /// the sampled data when the data-ready bit is not set.
+    pub async fn measure_if_ready_async(&mut self) -> Result<Option<Measurement>, E> {
+        let data = self
+            .device
+            .data_with_interrupt_status()
+            .read_async()
+            .await?;
+
+        if !data.data_ready() {
+            return Ok(None);
+        }
+
+        let coefficients = self.coefficients_async().await?;
+        let temperature = coefficients.compensate_temperature(data.temperature());
+        let pressure = coefficients.compensate_pressure(temperature, data.pressure());
+        Ok(Some(Measurement {
+            temperature,
+            pressure,
+            altitude: calculate_altitude(pressure, self.reference_altitude),
+        }))
+    }
+
     /// Get the altitude based on the current pressure and the reference altitude.
     ///
     /// To change the reference altitude, use [`Self::set_reference_altitude`].
@@ -134,6 +164,32 @@ where
         })
     }
 
+    /// Read and return a measurement only when the data-ready interrupt is active.
+    ///
+    /// Pressure, temperature, and interrupt status are acquired in one contiguous
+    /// 14-byte read from address `0x04` through `0x11`. This range also spans the
+    /// sensor-time, reserved, and event registers; reading the event register clears
+    /// its flags.
+    ///
+    /// Returns `Ok(None)` without loading calibration coefficients or compensating
+    /// the sampled data when the data-ready bit is not set.
+    pub fn measure_if_ready(&mut self) -> Result<Option<Measurement>, E> {
+        let data = self.device.data_with_interrupt_status().read()?;
+
+        if !data.data_ready() {
+            return Ok(None);
+        }
+
+        let coefficients = self.coefficients()?;
+        let temperature = coefficients.compensate_temperature(data.temperature());
+        let pressure = coefficients.compensate_pressure(temperature, data.pressure());
+        Ok(Some(Measurement {
+            temperature,
+            pressure,
+            altitude: calculate_altitude(pressure, self.reference_altitude),
+        }))
+    }
+
     /// Get the altitude based on the current pressure and the reference altitude.
     ///
     /// To change the reference altitude, use [`Self::set_reference_altitude`].
@@ -153,10 +209,20 @@ where
 
 #[cfg(test)]
 mod tests {
+    extern crate std;
+
     use super::*;
-    use crate::bmp390::test_utils::interface;
-    use core::assert_matches;
+    use crate::{
+        bmp390::test_utils::{coefficients, interface},
+        interfaces::{I2cInterface, Sdo},
+    };
+    use core::{
+        assert_matches,
+        future::Future,
+        task::{Context, Poll, Waker},
+    };
     use device_driver_mock::{RegisterOperation, RegisterOperationRef::*};
+    use embedded_hal_mock::eh1::i2c::{Mock as I2cMock, Transaction as I2cTransaction};
     use uom::{
         ConstZero,
         si::{length::meter, pressure::pascal, thermodynamic_temperature::degree_celsius},
@@ -172,6 +238,26 @@ mod tests {
 
     fn expected_altitude() -> Length {
         Length::new::<meter>(248.78754)
+    }
+
+    fn block_on_ready<F: Future>(future: F) -> F::Output {
+        let mut future = core::pin::pin!(future);
+        let mut context = Context::from_waker(Waker::noop());
+        match future.as_mut().poll(&mut context) {
+            Poll::Ready(output) => output,
+            Poll::Pending => panic!("mock interface unexpectedly yielded"),
+        }
+    }
+
+    fn bulk_read_expectations(data_ready: bool) -> [I2cTransaction; 4] {
+        let mut response = std::vec![0xcb, 0xb3, 0x6b, 0xd1, 0xba, 0x82, 0, 0, 0, 0, 0, 0, 0, 0,];
+        response[13] = u8::from(data_ready) << 3;
+        [
+            I2cTransaction::transaction_start(0x77),
+            I2cTransaction::write(0x77, std::vec![0x04]),
+            I2cTransaction::read(0x77, response),
+            I2cTransaction::transaction_end(0x77),
+        ]
     }
 
     #[test]
@@ -226,6 +312,45 @@ mod tests {
         assert_eq!(measurement.temperature, expected_temperature());
         assert_eq!(measurement.pressure, expected_pressure());
         assert_eq!(measurement.altitude, expected_altitude());
+    }
+
+    #[test]
+    fn measure_if_ready_async_uses_one_bulk_i2c_transaction() {
+        let expectations = bulk_read_expectations(true);
+        let interface = I2cInterface {
+            bus: I2cMock::new(&expectations),
+            address: Sdo::Up,
+        };
+        let mut bmp390 = Bmp390::new(interface);
+        bmp390.coefficients = Some(coefficients());
+
+        let measurement = block_on_ready(bmp390.measure_if_ready_async())
+            .unwrap()
+            .expect("data-ready measurement");
+
+        assert_eq!(measurement.temperature, expected_temperature());
+        assert_eq!(measurement.pressure, expected_pressure());
+        assert_eq!(measurement.altitude, expected_altitude());
+        bmp390.device.interface.bus.done();
+    }
+
+    #[test]
+    fn measure_if_ready_async_discards_data_when_not_ready() {
+        let expectations = bulk_read_expectations(false);
+        let interface = I2cInterface {
+            bus: I2cMock::new(&expectations),
+            address: Sdo::Up,
+        };
+        let mut bmp390 = Bmp390::new(interface);
+
+        assert!(
+            block_on_ready(bmp390.measure_if_ready_async())
+                .unwrap()
+                .is_none()
+        );
+
+        assert!(bmp390.coefficients.is_none());
+        bmp390.device.interface.bus.done();
     }
 
     #[test]

@@ -138,6 +138,28 @@ Data:
             start: 24
             end: 48
 
+DataWithInterruptStatus:
+    type: register
+    address: 0x04
+    allow_address_overlap: true
+    size_bits: 112
+    description: "Pressure and temperature data followed by the intervening register range and interrupt status in one burst read."
+    fields:
+        pressure:
+            description: "24-bit pressure data."
+            base: uint
+            start: 0
+            end: 24
+        temperature:
+            description: "24-bit temperature data."
+            base: uint
+            start: 24
+            end: 48
+        data_ready:
+            description: "Data-ready interrupt status from bit 3 of the INT_STATUS register at the end of the burst."
+            base: bool
+            start: 107
+
 Event:
     type: register
     address: 0x10

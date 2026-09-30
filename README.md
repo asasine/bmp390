@@ -11,5 +11,7 @@ The BMP390 is a digital sensor with pressure and temperature measurement based o
 
 Synchronous and asynchronous interfaces are available. The synchronous interface is built on top of the [`embedded-hal`](https://docs.rs/embedded-hal/latest/embedded_hal/) traits, while the asynchronous interface is built on top of the [`embedded-hal-async`](https://docs.rs/embedded-hal-async/latest/embedded_hal_async/) traits. The default features include the *asynchronous* interface, but the synchronous [`sync::Bmp390`](https://docs.rs/bmp390/latest/bmp390/sync/struct.Bmp390.html) one can be enabled with the `sync` feature.
 
+For interrupt-driven sampling, `Bmp390::measure_if_ready_async` reads pressure, temperature, and interrupt status in one contiguous I2C transaction. It returns `Ok(Some(measurement))` when the data-ready interrupt is active, `Ok(None)` when it is not active, and `Err(error)` for bus failures. The not-ready path discards the sampled bytes without calibration or compensation. The 14-byte burst from `0x04` through `0x11` also spans sensor-time, reserved, and `EVENT` registers; reading `EVENT` clears its flags.
+
 ## Datasheet
 The [BMP390 Datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp390-ds002.pdf) contains detailed information about the sensor's features, electrical characteristics, and registers. This package implements the functionality described in the datasheet and references the relevant sections in the documentation.

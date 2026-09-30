@@ -44,6 +44,11 @@
 //! synchronous methods. The synchronous API is available any time the provided
 //! bus interface implements the synchronous [`embedded_hal::i2c::I2c`] trait.
 //! Asynchronous methods are typically suffixed in `_async`.
+//!
+//! Interrupt-driven applications can use [`Bmp390::measure_if_ready_async`] to
+//! acquire pressure, temperature, and interrupt status in one I2C transaction.
+//! It returns `Ok(None)` when the data-ready interrupt is not active, without
+//! compensating or returning the sampled data.
 
 #![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
